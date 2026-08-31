@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Apex Surge</title>
+<meta name="description" content="Turn ideas from the world's best books into personalized real-world experiments." />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%237c5cff'/%3E%3Ctext x='50' y='64' font-size='42' font-family='Arial' font-weight='800' fill='white' text-anchor='middle'%3EAS%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  /* app-only additions on top of the shared design system */
+  .auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:24px;}
+  .google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:#fff;color:#1f1f1f;border:none;border-radius:14px;padding:14px 18px;font-weight:700;font-size:14.5px;}
+  .error-banner{background:rgba(255,92,122,.12);border:1px solid var(--danger);color:#ff9cae;border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;}
+  .inline-spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite;display:inline-block;}
+  .btn[data-loading="1"]{opacity:.75;pointer-events:none;}
+  .empty-state{text-align:center;color:var(--text-faint);font-size:13px;padding:30px 10px;}
+  .full-bleed{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;text-align:center;}
+</style>
+</head>
+<body>
+
+  <div class="shell">
+    <aside class="shell-info">
+      <div class="brand">
+        <div class="brand-mark">AS</div>
+        <div>
+          <div class="brand-name">Apex Surge</div>
+          <div class="brand-tag">Live app · Firebase + Claude</div>
+        </div>
+      </div>
+      <p class="shell-desc">This is the real application — Google sign-in, Firestore-backed data, and every AI moment (lessons, personal diagnosis, experiments, coach, roleplay) is a live call to Claude through a Cloud Function.</p>
+      <div class="flow-picker">
+        <div class="flow-picker-title">Account</div>
+        <div id="acctBox" style="font-size:12.5px;color:var(--text-dim);padding:6px 2px;">Not signed in</div>
+        <button class="ghost-btn" id="signOutBtn" style="display:none;">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="phone-stage">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screens" id="screens"></div>
+        <nav class="tabbar" id="tabbar">
+          <button class="tab" data-tab="today"><span class="tab-ico">☀</span><span>Today</span></button>
+          <button class="tab" data-tab="explore"><span class="tab-ico">◎</span><span>Explore</span></button>
+          <button class="tab" data-tab="growth-list"><span class="tab-ico">◆</span><span>My Growth</span></button>
+          <button class="tab" data-tab="playbook"><span class="tab-ico">▤</span><span>Playbook</span></button>
+          <button class="tab" data-tab="coach-chat"><span class="tab-ico">✦</span><span>Coach</span></button>
+        </nav>
+      </div>
+      <div class="stage-caption" id="stageCaption">Loading…</div>
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
