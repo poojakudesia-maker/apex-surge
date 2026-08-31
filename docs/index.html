@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apex Surge — Clickable Prototype</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%237c5cff'/%3E%3Ctext x='50' y='64' font-size='42' font-family='Arial' font-weight='800' fill='white' text-anchor='middle'%3EAS%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div class="shell">
+    <aside class="shell-info">
+      <div class="brand">
+        <div class="brand-mark">AS</div>
+        <div>
+          <div class="brand-name">Apex Surge</div>
+          <div class="brand-tag">Knowledge → Life, clickable prototype</div>
+        </div>
+      </div>
+      <p class="shell-desc">This is an interactive prototype. Every button, chip and card is clickable and routes to a real screen — nothing here is decorative. Use it to walk the product end‑to‑end.</p>
+
+      <div class="flow-picker">
+        <div class="flow-picker-title">Jump to a flow</div>
+        <button class="flow-btn" data-jump="splash">① Onboarding</button>
+        <button class="flow-btn" data-jump="today">② Today / Daily Loop</button>
+        <button class="flow-btn" data-jump="explore">③ Explore a Book</button>
+        <button class="flow-btn" data-jump="growth-list">④ My Growth Journey</button>
+        <button class="flow-btn" data-jump="coach-chat">⑤ AI Coach + Roleplay</button>
+        <button class="flow-btn" data-jump="playbook">⑥ Personal Playbook</button>
+        <button class="flow-btn" data-jump="weekly-intro">⑦ Weekly Review</button>
+      </div>
+
+      <div class="reset-row">
+        <button id="resetProto" class="ghost-btn">Reset prototype state</button>
+      </div>
+    </aside>
+
+    <main class="phone-stage">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screens" id="screens"></div>
+        <nav class="tabbar" id="tabbar">
+          <button class="tab" data-tab="today">
+            <span class="tab-ico">☀</span><span>Today</span>
+          </button>
+          <button class="tab" data-tab="explore">
+            <span class="tab-ico">◎</span><span>Explore</span>
+          </button>
+          <button class="tab" data-tab="growth-list">
+            <span class="tab-ico">◆</span><span>My Growth</span>
+          </button>
+          <button class="tab" data-tab="playbook">
+            <span class="tab-ico">▤</span><span>Playbook</span>
+          </button>
+          <button class="tab" data-tab="coach-chat">
+            <span class="tab-ico">✦</span><span>Coach</span>
+          </button>
+        </nav>
+      </div>
+      <div class="stage-caption" id="stageCaption">Screen 1 of 1 · onboarding</div>
+    </main>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/screens.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
