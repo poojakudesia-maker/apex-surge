@@ -38,6 +38,31 @@ function bookCover(b, w = 52, h = 70) {
   return `<div class="book-cover" style="width:${w}px;height:${h}px;background:linear-gradient(160deg,${b.color||'#7c5cff'},#00000055)">${initials}</div>`;
 }
 function errorHtml(msg) { return `<div class="error-banner">${msg}</div>`; }
+
+// ---- lesson audio (browser text-to-speech, no extra backend/cost) ----
+const speech = {
+  utterance: null,
+  state: "idle", // idle | playing | paused
+  supported: typeof window !== "undefined" && "speechSynthesis" in window,
+  stop() {
+    if (this.supported) window.speechSynthesis.cancel();
+    this.utterance = null;
+    this.state = "idle";
+  },
+  play(text, onEnd) {
+    if (!this.supported) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.98;
+    u.onend = () => { this.state = "idle"; onEnd?.(); };
+    u.onerror = () => { this.state = "idle"; onEnd?.(); };
+    this.utterance = u;
+    this.state = "playing";
+    window.speechSynthesis.speak(u);
+  },
+  pause() { if (this.supported && this.state === "playing") { window.speechSynthesis.pause(); this.state = "paused"; } },
+  resume() { if (this.supported && this.state === "paused") { window.speechSynthesis.resume(); this.state = "playing"; } },
+};
 function loadingSpinner() { return `<div class="center-col" style="padding-top:80px;"><div class="loader-ring"></div></div>`; }
 
 async function withLoading(btn, fn) {
@@ -308,11 +333,54 @@ SCREENS["today-lesson"] = {
   render() {
     const m = STATE.todayMission;
     if (!m) return loadingSpinner();
+    const mode = STATE.ui.lessonMode || "listen";
+
+    if (mode === "read") {
+      return `${topbar("Lesson", { back: true })}
+      <div class="tag">${m.bookTitle} · ${m.durationMin || 10} min</div>
+      <div class="h1" style="margin-top:10px;">${m.lessonTitle}</div>
+      ${(m.lessonBody||[]).map((p) => `<p class="sub">${p}</p>`).join("")}
+      ${speech.supported ? `<button class="btn ghost small" id="toListen" style="margin-bottom:10px;">🔊 Listen instead</button>` : ""}
+      <button class="btn" id="lessonContinue">Continue</button>`;
+    }
+
     return `${topbar("Lesson", { back: true })}
     <div class="tag">${m.bookTitle} · ${m.durationMin || 10} min</div>
     <div class="h1" style="margin-top:10px;">${m.lessonTitle}</div>
-    ${(m.lessonBody||[]).map((p) => `<p class="sub">${p}</p>`).join("")}
-    <button class="btn" data-go="today-lesson-q">Continue</button>`;
+    <div class="card" style="text-align:center;padding:28px 18px;">
+      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:14px;">Audio summary</div>
+      <button class="avatar-ring" id="playBtn" style="width:64px;height:64px;font-size:22px;margin:0 auto 14px;border-color:var(--accent);cursor:pointer;">▶</button>
+      <div class="sub" id="playStatus" style="margin-bottom:0;">${speech.supported ? "Tap play to listen" : "Audio isn't supported in this browser"}</div>
+    </div>
+    ${speech.supported ? `<button class="btn ghost small" id="toRead" style="margin-bottom:10px;">📄 Read instead</button>` : `<button class="btn ghost small" id="toRead" style="margin-bottom:10px;">📄 Show text</button>`}
+    <button class="btn" id="lessonContinue">Continue</button>`;
+  },
+  after(el) {
+    const m = STATE.todayMission;
+    const bodyText = `${m.lessonTitle}. From ${m.bookTitle} by ${m.bookAuthor}. ${(m.lessonBody||[]).join(" ")}`;
+
+    const toRead = el.querySelector("#toRead");
+    if (toRead) toRead.addEventListener("click", () => { speech.stop(); STATE.ui.lessonMode = "read"; refresh(); });
+    const toListen = el.querySelector("#toListen");
+    if (toListen) toListen.addEventListener("click", () => { STATE.ui.lessonMode = "listen"; refresh(); });
+
+    const playBtn = el.querySelector("#playBtn");
+    if (playBtn) {
+      const status = el.querySelector("#playStatus");
+      const setIcon = () => {
+        playBtn.textContent = speech.state === "playing" ? "⏸" : "▶";
+        status.textContent = speech.state === "playing" ? "Playing…" : speech.state === "paused" ? "Paused" : "Tap play to listen";
+      };
+      setIcon();
+      playBtn.addEventListener("click", () => {
+        if (speech.state === "idle") speech.play(bodyText, () => { setIcon(); });
+        else if (speech.state === "playing") speech.pause();
+        else if (speech.state === "paused") speech.resume();
+        setIcon();
+      });
+    }
+
+    el.querySelector("#lessonContinue").addEventListener("click", () => { speech.stop(); go("today-lesson-q"); });
   },
 };
 
@@ -552,11 +620,15 @@ SCREENS["book-apply-saved"] = {
 
 /* ================= MY GROWTH ================= */
 
+const MAX_ACTIVE_JOURNEYS = 3;
+
 SCREENS["growth-list"] = {
   tab: "growth-list",
   render() {
     const active = STATE.journeys.filter((j) => j.status === "active");
-    return `<div class="h2">My Growth</div><p class="sub">Your active transformation journeys.</p>
+    const atCap = active.length >= MAX_ACTIVE_JOURNEYS;
+    return `<div class="card-row" style="margin-bottom:2px;"><div class="h2" style="margin-bottom:0;">My Growth</div><span class="pill-score">${active.length}/${MAX_ACTIVE_JOURNEYS} active</span></div>
+    <p class="sub">Your active transformation journeys.</p>
     ${active.length ? active.map((j) => `
       <div class="card" data-go="growth-detail" data-journey="${j.id}" style="border-color:#3a2c66;background:linear-gradient(160deg,#241a3d,#171b24);">
         <div class="card-row" style="margin-bottom:10px;"><div><span class="tag">Active</span><div style="font-weight:800;font-size:16px;margin-top:6px;">${j.goalTitle}</div></div>
@@ -564,42 +636,71 @@ SCREENS["growth-list"] = {
         <div class="sub" style="margin-bottom:0;">Week ${j.currentWeek} of ${j.weeks.length}</div>
       </div>`).join("") : `<div class="empty-state">No active journeys yet — start one below.</div>`}
     <div class="field-label">Start something new</div>
+    ${atCap ? `<div class="card card-soft"><div class="sub" style="margin-bottom:0;">You've reached the limit of ${MAX_ACTIVE_JOURNEYS} active journeys. Complete one above to start another — finished journeys move to your Playbook.</div></div>` : `
+    <div class="list-item" data-go="growth-new" data-goal="custom">
+      <div class="avatar-ring">✏️</div><div style="flex:1;"><div style="font-weight:700;font-size:14px;">Start a custom journey</div><div class="sub" style="margin:2px 0 0;">Tell us what you want to work on</div></div>
+      <span style="color:var(--text-faint);">›</span></div>
     ${GROWTH_GOALS.map((g) => `<div class="list-item" data-go="growth-new" data-goal="${g.id}">
       <div class="avatar-ring">${g.ico}</div><div style="flex:1;"><div style="font-weight:700;font-size:14px;">${g.title}</div><div class="sub" style="margin:2px 0 0;">${g.dsc}</div></div>
-      <span style="color:var(--text-faint);">›</span></div>`).join("")}`;
+      <span style="color:var(--text-faint);">›</span></div>`).join("")}`}`;
   },
   after(el) {
     el.querySelectorAll("[data-journey]").forEach((c) => c.addEventListener("click", () => { STATE.activeJourney = STATE.journeys.find((j) => j.id === c.dataset.journey); }));
-    el.querySelectorAll("[data-goal]").forEach((c) => c.addEventListener("click", () => { STATE.ui.selectedGoal = GROWTH_GOALS.find((g) => g.id === c.dataset.goal); }));
+    el.querySelectorAll("[data-goal]").forEach((c) => c.addEventListener("click", () => {
+      STATE.ui.selectedGoal = c.dataset.goal === "custom" ? null : GROWTH_GOALS.find((g) => g.id === c.dataset.goal);
+      STATE.ui.assessment = null;
+    }));
   },
 };
 
 SCREENS["growth-new"] = {
   back: true,
   render() {
-    const goal = STATE.ui.selectedGoal || GROWTH_GOALS[0];
+    const goal = STATE.ui.selectedGoal;
+    STATE.ui.customGoal = STATE.ui.customGoal || { title: goal?.title || "", dsc: goal?.dsc || "" };
     STATE.ui.assessment = STATE.ui.assessment || [
       { id: "a1", label: "Where you are today (1)", v: 5 }, { id: "a2", label: "Where you are today (2)", v: 5 },
       { id: "a3", label: "Where you are today (3)", v: 5 }, { id: "a4", label: "Where you are today (4)", v: 5 },
     ];
     return `${topbar("New Journey", { back: true })}
-    <div class="eyebrow">Step 1 of 2 · ${goal.title}</div>
-    <div class="h1">Let's understand where you're starting from</div>
-    <p class="sub">Rate yourself honestly — this is your baseline so we can measure real change.</p>
+    <div class="eyebrow">Step 1 of 2</div>
+    <div class="h1">${goal ? goal.title : "What do you want to work on?"}</div>
+    ${!goal ? `
+    <p class="sub">Name the topic — we'll build a whole roadmap around it.</p>
+    <input type="text" id="customTitle" placeholder="e.g. Becoming a better public speaker" value="${STATE.ui.customGoal.title}" />
+    <div class="field-label">What does success look like?</div>
+    <textarea id="customDsc" rows="2" placeholder="Briefly describe what you're hoping changes">${STATE.ui.customGoal.dsc}</textarea>
+    ` : ""}
+    <p class="sub" style="margin-top:16px;">Rate yourself honestly — this is your baseline so we can measure real change.</p>
     ${STATE.ui.assessment.map((a) => `<div class="slider-row"><div class="slider-top"><span>${a.label}</span><b data-val="${a.id}">${a.v}</b>/10</div><input type="range" min="1" max="10" value="${a.v}" data-slider="${a.id}" /></div>`).join("")}
-    <button class="btn" style="margin-top:8px;" id="roadmapBtn">See my roadmap</button>`;
+    <button class="btn" style="margin-top:8px;" id="roadmapBtn" ${!goal && !STATE.ui.customGoal.title.trim() ? "disabled" : ""}>See my roadmap</button>`;
   },
   after(el) {
+    const titleInput = el.querySelector("#customTitle");
+    const dscInput = el.querySelector("#customDsc");
+    const btn = el.querySelector("#roadmapBtn");
+    if (titleInput) titleInput.addEventListener("input", () => {
+      STATE.ui.customGoal.title = titleInput.value;
+      btn.toggleAttribute("disabled", !titleInput.value.trim());
+    });
+    if (dscInput) dscInput.addEventListener("input", () => { STATE.ui.customGoal.dsc = dscInput.value; });
     el.querySelectorAll("[data-slider]").forEach((s) => s.addEventListener("input", () => {
       el.querySelector(`[data-val="${s.dataset.slider}"]`).textContent = s.value;
       const a = STATE.ui.assessment.find((x) => x.id === s.dataset.slider);
       if (a) a.v = Number(s.value);
     }));
-    el.querySelector("#roadmapBtn").addEventListener("click", () => withLoading(el.querySelector("#roadmapBtn"), async () => {
-      const goal = STATE.ui.selectedGoal || GROWTH_GOALS[0];
-      const result = await generateRoadmap({ goalTitle: goal.title, goalDescription: goal.dsc, weeks: goal.weeks, assessment: STATE.ui.assessment });
-      STATE.ui.generatedRoadmap = result;
-      go("growth-roadmap");
+    btn.addEventListener("click", () => withLoading(btn, async () => {
+      const goal = STATE.ui.selectedGoal || { title: STATE.ui.customGoal.title, dsc: STATE.ui.customGoal.dsc || STATE.ui.customGoal.title, weeks: 6 };
+      try {
+        const result = await generateRoadmap({ goalTitle: goal.title, goalDescription: goal.dsc, weeks: goal.weeks, assessment: STATE.ui.assessment });
+        STATE.ui.generatedRoadmap = result;
+        STATE.ui.roadmapGoalTitle = goal.title;
+        STATE.ui.customGoal = null;
+        go("growth-roadmap");
+      } catch (e) {
+        if (e?.code === "functions/resource-exhausted") alert(e.message);
+        else throw e;
+      }
     }));
   },
 };
@@ -609,10 +710,9 @@ SCREENS["growth-roadmap"] = {
   render() {
     const r = STATE.ui.generatedRoadmap;
     if (!r) return loadingSpinner();
-    const goal = STATE.ui.selectedGoal || GROWTH_GOALS[0];
     return `${topbar("Your Roadmap", { back: true })}
     <div class="eyebrow">Step 2 of 2 · AI generated</div>
-    <div class="h1">${goal.title}</div>
+    <div class="h1">${STATE.ui.roadmapGoalTitle || "Your journey"}</div>
     <p class="sub">Drawing from: ${(r.bookRefs||[]).join(", ")}</p>
     ${r.weeks.map((w) => `<div class="card card-soft" style="margin-bottom:8px;"><div class="card-row"><div><span class="tag">Week ${w.week}</span><div style="font-weight:700;font-size:13.5px;margin-top:6px;">${w.theme}</div><div class="sub" style="margin:2px 0 0;">${w.focus}</div></div></div></div>`).join("")}
     <button class="btn" style="margin-top:6px;" data-go="growth-list" data-root="1">Start this journey</button>`;
@@ -659,10 +759,16 @@ SCREENS["growth-complete"] = {
     return `<div class="center-col" style="padding-top:24px;">
       <div style="font-size:52px;margin-bottom:8px;">🏆</div>
       <div class="h1">Journey complete</div>
-      <p class="sub">${j?.goalTitle || ""}</p>
-      <button class="btn" style="width:100%;margin-top:16px;" data-go="playbook" data-root="1">View my Playbook</button>
-      <button class="btn secondary" style="width:100%;margin-top:10px;" data-go="growth-list" data-root="1">Back to My Growth</button>
+      <p class="sub">${j?.goalTitle || ""} is now saved in your Playbook. Start another whenever you're ready.</p>
+      <button class="btn" style="width:100%;margin-top:16px;" id="toPlaybookBtn">View my Playbook</button>
+      <button class="btn secondary" style="width:100%;margin-top:10px;" data-go="growth-list" data-root="1">Start a new journey</button>
     </div>`;
+  },
+  after(el) {
+    el.querySelector("#toPlaybookBtn").addEventListener("click", () => {
+      STATE.ui.playbookTab = "journeys";
+      go("playbook", { root: true });
+    });
   },
 };
 
@@ -799,7 +905,7 @@ SCREENS["playbook"] = {
   tab: "playbook",
   render() {
     const tab = STATE.ui.playbookTab || "principles";
-    const tabs = [["principles","Principles"],["insights","Insights"],["experiments","Experiments"],["works","What works"]];
+    const tabs = [["principles","Principles"],["insights","Insights"],["experiments","Experiments"],["works","What works"],["journeys","Journeys"]];
     let body = "";
     if (tab === "principles") {
       body = STATE.playbookPrinciples.length
@@ -818,11 +924,21 @@ SCREENS["playbook"] = {
           <div class="day-track" style="margin:10px 0 4px;">${(e.days||[]).map((d,i)=>`<div class="day-dot ${d?'done':''}" data-daytoggle="${i}">${d?'✓':i+1}</div>`).join("")}</div>
           <div class="sub" style="margin:4px 0 0;">${streak}/${(e.days||[]).length} days done</div></div>`;
       }).join("") : `<div class="empty-state">No standalone experiments yet — apply a book idea from Explore.</div>`;
-    } else {
+    } else if (tab === "works") {
       body = STATE.worksForMe.length
         ? STATE.worksForMe.map((w) => `<div class="card card-soft">✓ ${w.text}</div>`).join("")
         : `<div class="empty-state">Nothing recorded yet.</div>`;
       body += `<div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="newWorks" placeholder="What's working for you?..." /><button class="btn small" id="addWorks" style="width:auto;">Add</button></div>`;
+    } else {
+      const completed = STATE.journeys.filter((j) => j.status === "complete");
+      const active = STATE.journeys.filter((j) => j.status === "active");
+      body = (completed.length === 0 && active.length === 0) ? `<div class="empty-state">No journeys yet — start one from My Growth.</div>` : `
+        ${completed.length ? `<div class="field-label" style="margin-top:0;">Completed</div>${completed.map((j) => `
+          <div class="card card-soft"><div class="card-row"><span style="font-weight:700;font-size:13.5px;">${j.goalTitle}</span><span class="tag green">✓ Completed</span></div>
+          <div class="sub" style="margin:6px 0 0;">${j.weeks.length} weeks · ${(j.bookRefs||[]).join(", ")}</div></div>`).join("")}` : ""}
+        ${active.length ? `<div class="field-label">In progress</div>${active.map((j) => `
+          <div class="card card-soft" data-go="growth-detail" data-journey="${j.id}"><div class="card-row"><span style="font-weight:700;font-size:13.5px;">${j.goalTitle}</span><span class="tag gold">Week ${j.currentWeek}/${j.weeks.length}</span></div>
+          <div class="progressbar" style="margin-top:8px;"><div style="width:${j.progressPct}%"></div></div></div>`).join("")}` : ""}`;
     }
     return `<div class="h2">My Playbook</div><p class="sub">Everything Apex Surge has learned about you.</p>
     <div class="playbook-tabs">${tabs.map(([id,label]) => `<button class="pb-tab ${tab===id?'active':''}" data-pbtab="${id}">${label}</button>`).join("")}</div>
@@ -849,6 +965,9 @@ SCREENS["playbook"] = {
       const exp = STATE.experiments.find((e) => e.id === card.dataset.exp);
       if (!exp) return;
       await toggleExperimentDay(STATE.user.uid, exp.id, Number(d.dataset.daytoggle), exp.days || []);
+    }));
+    el.querySelectorAll("[data-journey]").forEach((c) => c.addEventListener("click", () => {
+      STATE.activeJourney = STATE.journeys.find((j) => j.id === c.dataset.journey);
     }));
   },
 };

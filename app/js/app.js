@@ -11,8 +11,13 @@ const captionEl = document.getElementById("stageCaption");
 const acctBox = document.getElementById("acctBox");
 const signOutBtn = document.getElementById("signOutBtn");
 
+function stopAnyLessonAudio() {
+  try { window.speechSynthesis?.cancel(); } catch (e) {}
+}
+
 export function go(id, opts = {}) {
   if (!SCREENS[id]) { console.warn("Unknown screen", id); return; }
+  stopAnyLessonAudio();
   const cur = STATE.nav.current;
   if (!opts.root && !opts.replace && cur && cur !== id) STATE.nav.stack.push(cur);
   if (opts.root) STATE.nav.stack = [];
@@ -21,6 +26,7 @@ export function go(id, opts = {}) {
 }
 
 export function goBack() {
+  stopAnyLessonAudio();
   const prev = STATE.nav.stack.pop();
   if (prev) { STATE.nav.current = prev; renderScreen(prev); }
   else {

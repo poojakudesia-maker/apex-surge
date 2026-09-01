@@ -17,6 +17,8 @@ interface RoadmapResult {
   bookRefs: string[];
 }
 
+const MAX_ACTIVE_JOURNEYS = 3;
+
 /** Self-assessment sliders -> AI-generated multi-week roadmap, persisted as a new journey. */
 export const generateRoadmap = onCall({ secrets: [anthropicKey], cors: true }, async (request) => {
   const uid = requireAuth(request);
@@ -27,6 +29,19 @@ export const generateRoadmap = onCall({ secrets: [anthropicKey], cors: true }, a
     assessment: { id: string; label: string; v: number }[];
   };
   if (!goalTitle) throw new HttpsError("invalid-argument", "goalTitle is required.");
+
+  const activeSnap = await db
+    .collection("users")
+    .doc(uid)
+    .collection("journeys")
+    .where("status", "==", "active")
+    .get();
+  if (activeSnap.size >= MAX_ACTIVE_JOURNEYS) {
+    throw new HttpsError(
+      "resource-exhausted",
+      `You already have ${MAX_ACTIVE_JOURNEYS} active journeys. Complete one before starting another.`
+    );
+  }
 
   const system = `You are Apex Surge's Synthesis Engine. Design a multi-week transformation roadmap
 that sequences weekly themes starting with the user's lowest self-assessed scores. Ground it in real,
@@ -113,7 +128,13 @@ export const advanceJourneyWeek = onCall(
     const progressPct = Math.round((updatedWeeks.filter((w: any) => w.done).length / weeks.length) * 100);
     const status = nextWeek === journey.currentWeek && progressPct === 100 ? "complete" : "active";
 
-    await journeyRef.update({ currentWeek: nextWeek, weeks: updatedWeeks, progressPct, status });
+    await journeyRef.update({
+      currentWeek: nextWeek,
+      weeks: updatedWeeks,
+      progressPct,
+      status,
+      ...(status === "complete" ? { completedAt: FieldValue.serverTimestamp() } : {}),
+    });
     return { currentWeek: nextWeek, progressPct, status };
   }
 );
