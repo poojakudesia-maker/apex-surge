@@ -8,7 +8,14 @@ function getClient(): Anthropic {
   if (!client) {
     // ANTHROPIC_API_KEY is injected at runtime via the bound Firebase secret
     // (see secrets: [anthropicKey] on each onCall function).
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    // ANTHROPIC_WORKSPACE_ID is optional: only needed when the API key is an
+    // identity-linked key (accounts with multiple Workspaces) rather than a
+    // key scoped to one workspace - Anthropic rejects those without it.
+    const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID;
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      defaultHeaders: workspaceId ? { "anthropic-workspace-id": workspaceId } : undefined,
+    });
   }
   return client;
 }
