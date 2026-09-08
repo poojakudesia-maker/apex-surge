@@ -1,9 +1,10 @@
-// Apex Surge — client-side session state (Firestore is the source of truth;
-// this just caches the latest snapshots for synchronous screen rendering).
+// Apex Surge — client-side session state (MySQL via the PHP API is the
+// source of truth; this just caches the latest fetch for synchronous
+// screen rendering).
 export const STATE = {
-  user: null, // firebase auth user
-  profile: null, // users/{uid} doc
-  todayMission: null, // users/{uid}/missions/{today}
+  user: null, // { id, email, displayName }
+  profile: null, // same shape as user right now — kept separate for clarity
+  todayMission: null,
   journeys: [],
   activeJourney: null,
   experiments: [],
@@ -26,18 +27,9 @@ export const STATE = {
     weeklyFailed: "",
   },
   nav: { current: "loading", stack: [] },
-  unsubs: [],
 };
 
-export function clearSubs() {
-  STATE.unsubs.forEach((u) => {
-    try { u(); } catch (e) {}
-  });
-  STATE.unsubs = [];
-}
-
 export function resetSessionState() {
-  clearSubs();
   Object.assign(STATE, {
     user: null, profile: null, todayMission: null, journeys: [], activeJourney: null,
     experiments: [], playbookInsights: [], playbookPrinciples: [], worksForMe: [],

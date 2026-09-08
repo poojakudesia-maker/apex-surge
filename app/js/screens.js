@@ -1,13 +1,14 @@
-// Apex Surge — real app screens (Firestore + Cloud Functions backed)
+// Apex Surge — real app screens (PHP + MySQL backed)
 import { STATE } from "./state.js";
 import {
   generateGrowthProfile, generateDailyMission, diagnoseReflection,
   markExperimentDayFn, adaptExperiment, completeMission, applyBookToLife,
   generateRoadmap, generateJourneyTask, advanceJourneyWeek, coachReply,
   roleplayReply, roleplayFeedback, synthesizeWeeklyReview, toggleExperimentDay,
-  addPrinciple, addWorksForMe, todayId, db, doc, updateDoc,
+  addPrinciple, addWorksForMe, submitQuizAnswer, fetchJourneys, fetchExperiments,
+  fetchPrinciples, fetchWorksForMe, me,
 } from "./api.js";
-import { doGoogleSignIn } from "./app.js";
+import { doLogin, doRegister, loadAppData } from "./app.js";
 
 // go/refresh are attached lazily to avoid a circular-import race
 let _nav = null;
@@ -121,19 +122,49 @@ SCREENS["loading"] = {
 
 SCREENS["auth"] = {
   render() {
-    return `<div class="auth-screen">
-      <div style="width:84px;height:84px;border-radius:24px;background:linear-gradient(135deg,var(--accent),#4a34c9);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;box-shadow:0 20px 50px rgba(124,92,255,.4);margin-bottom:20px;">AS</div>
-      <div style="font-size:26px;font-weight:800;margin-bottom:8px;">Apex Surge</div>
-      <div style="color:var(--text-dim);font-size:14px;line-height:1.6;max-width:260px;margin-bottom:32px;">Don't just learn what the world's best books say. Turn their ideas into a program that helps you actually change.</div>
-      <button class="google-btn" id="googleBtn">
-        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.5 13.2l7.9 6.1C12.3 13 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.9 7.2l7.6 5.9c4.5-4.1 7.1-10.1 7.1-17.6z"/><path fill="#FBBC05" d="M10.4 19.3A14.5 14.5 0 0 0 9.6 24c0 1.6.3 3.2.8 4.7l-7.9 6.1A24 24 0 0 1 0 24c0-3.9.9-7.6 2.5-10.8z"/><path fill="#34A853" d="M24 48c6.4 0 11.9-2.1 15.8-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.2 2.3-6.4 0-11.7-3.5-13.6-8.5l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
-        Continue with Google
-      </button>
-      <p class="sub" style="margin-top:18px;">Your real data — Firestore-backed, private to your account.</p>
+    const mode = STATE.ui.authMode || "login";
+    return `<div class="auth-screen" style="text-align:left;align-items:stretch;">
+      <div class="center-col" style="margin-bottom:22px;">
+        <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--accent),#4a34c9);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;box-shadow:0 16px 40px rgba(124,92,255,.4);margin-bottom:14px;">AS</div>
+        <div style="font-size:22px;font-weight:800;margin-bottom:6px;">Apex Surge</div>
+        <div style="color:var(--text-dim);font-size:13px;line-height:1.6;max-width:260px;text-align:center;">Don't just learn what the world's best books say. Turn their ideas into a program that helps you actually change.</div>
+      </div>
+      <div id="authError"></div>
+      ${mode === "register" ? `<div class="field-label" style="margin-top:0;">Name</div><input type="text" id="authName" placeholder="What should we call you?" />` : ""}
+      <div class="field-label" style="margin-top:${mode === "register" ? "14" : "0"}px;">Email</div>
+      <input type="email" id="authEmail" placeholder="you@example.com" />
+      <div class="field-label">Password</div>
+      <input type="password" id="authPassword" placeholder="${mode === "register" ? "At least 8 characters" : "Your password"}" />
+      <button class="btn" id="authSubmit" style="margin-top:18px;">${mode === "register" ? "Create account" : "Sign in"}</button>
+      <p class="sub" style="text-align:center;margin-top:16px;">
+        ${mode === "register" ? "Already have an account?" : "New here?"}
+        <a href="#" id="authToggle" style="color:var(--accent);font-weight:600;">${mode === "register" ? "Sign in" : "Create one"}</a>
+      </p>
     </div>`;
   },
   after(el) {
-    el.querySelector("#googleBtn").addEventListener("click", (e) => doGoogleSignIn(e.currentTarget));
+    const mode = STATE.ui.authMode || "login";
+    el.querySelector("#authToggle").addEventListener("click", (e) => {
+      e.preventDefault();
+      STATE.ui.authMode = mode === "register" ? "login" : "register";
+      refresh();
+    });
+    const submit = el.querySelector("#authSubmit");
+    submit.addEventListener("click", () => withLoading(submit, async () => {
+      el.querySelector("#authError").innerHTML = "";
+      const email = el.querySelector("#authEmail").value.trim();
+      const password = el.querySelector("#authPassword").value;
+      try {
+        if (mode === "register") {
+          const name = el.querySelector("#authName").value.trim();
+          await doRegister(email, password, name);
+        } else {
+          await doLogin(email, password);
+        }
+      } catch (e) {
+        el.querySelector("#authError").innerHTML = errorHtml(e.message || "Something went wrong.");
+      }
+    }));
   },
 };
 
@@ -233,6 +264,9 @@ SCREENS["onboard-style"] = {
       try {
         const result = await generateGrowthProfile(STATE.ui.onboarding);
         STATE.ui.generatedProfile = result;
+        STATE.profile = await me();
+        STATE.user = { ...STATE.user, ...STATE.profile };
+        await loadAppData();
         go("onboard-ready", { replace: true });
       } catch (err) {
         console.error(err);
@@ -320,10 +354,11 @@ SCREENS["today"] = {
   after(el) {
     const btn = el.querySelector("#genMissionBtn");
     if (btn) btn.addEventListener("click", () => withLoading(btn, async () => {
-      await generateDailyMission();
+      STATE.todayMission = await generateDailyMission();
+      refresh();
     }));
     el.querySelectorAll("[data-journey]").forEach((c) => c.addEventListener("click", () => {
-      STATE.activeJourney = STATE.journeys.find((j) => j.id === c.dataset.journey);
+      STATE.activeJourney = STATE.journeys.find((j) => j.id === Number(c.dataset.journey));
     }));
   },
 };
@@ -410,7 +445,7 @@ SCREENS["today-lesson-q"] = {
         <div style="font-weight:700;font-size:13px;color:${correct?'var(--accent-3)':'var(--danger)'};margin-bottom:4px;">${correct?'Correct':'Not quite'}</div>
         <div class="sub" style="margin-bottom:0;">${m.quizExplain}</div></div>`;
       next.removeAttribute("disabled");
-      try { await updateDoc(doc(db, "users", STATE.user.uid, "missions", m.id), { quizAnswer: chosen }); } catch (e) { console.error(e); }
+      try { await submitQuizAnswer(m.id, chosen); } catch (e) { console.error(e); }
     }));
     next.addEventListener("click", () => go("today-reflection"));
   },
@@ -597,6 +632,7 @@ SCREENS["book-apply"] = {
       const b = STATE.currentBook;
       const result = await applyBookToLife({ bookTitle: b.title, bookAuthor: b.author, keyIdea: b.keyIdea, area: STATE.ui.bookApply.area, behavior: STATE.ui.bookApply.behavior });
       STATE.ui.lastAppliedExperiment = result;
+      STATE.experiments = await fetchExperiments();
       go("book-apply-saved");
     }));
   },
@@ -645,7 +681,7 @@ SCREENS["growth-list"] = {
       <span style="color:var(--text-faint);">›</span></div>`).join("")}`}`;
   },
   after(el) {
-    el.querySelectorAll("[data-journey]").forEach((c) => c.addEventListener("click", () => { STATE.activeJourney = STATE.journeys.find((j) => j.id === c.dataset.journey); }));
+    el.querySelectorAll("[data-journey]").forEach((c) => c.addEventListener("click", () => { STATE.activeJourney = STATE.journeys.find((j) => j.id === Number(c.dataset.journey)); }));
     el.querySelectorAll("[data-goal]").forEach((c) => c.addEventListener("click", () => {
       STATE.ui.selectedGoal = c.dataset.goal === "custom" ? null : GROWTH_GOALS.find((g) => g.id === c.dataset.goal);
       STATE.ui.assessment = null;
@@ -696,9 +732,10 @@ SCREENS["growth-new"] = {
         STATE.ui.generatedRoadmap = result;
         STATE.ui.roadmapGoalTitle = goal.title;
         STATE.ui.customGoal = null;
+        STATE.journeys = await fetchJourneys();
         go("growth-roadmap");
       } catch (e) {
-        if (e?.code === "functions/resource-exhausted") alert(e.message);
+        if (e?.status === 409) alert(e.message);
         else throw e;
       }
     }));
@@ -747,8 +784,10 @@ SCREENS["growth-detail"] = {
     }));
     el.querySelector("#advanceBtn").addEventListener("click", () => withLoading(el.querySelector("#advanceBtn"), async () => {
       const res = await advanceJourneyWeek({ journeyId: j.id });
+      STATE.journeys = await fetchJourneys();
+      STATE.activeJourney = STATE.journeys.find((x) => x.id === j.id) || null;
       if (res.status === "complete") go("growth-complete");
-      else { STATE.activeJourney = { ...j, currentWeek: res.currentWeek, progressPct: res.progressPct }; refresh(); }
+      else refresh();
     }));
   },
 };
@@ -947,27 +986,32 @@ SCREENS["playbook"] = {
   after(el) {
     el.querySelectorAll("[data-pbtab]").forEach((t) => t.addEventListener("click", () => { STATE.ui.playbookTab = t.dataset.pbtab; refresh(); }));
     const addP = el.querySelector("#addPrinciple");
-    if (addP) addP.addEventListener("click", async () => {
+    if (addP) addP.addEventListener("click", () => withLoading(addP, async () => {
       const input = el.querySelector("#newPrinciple");
       if (!input.value.trim()) return;
-      await addPrinciple(STATE.user.uid, input.value.trim());
+      await addPrinciple(input.value.trim());
       input.value = "";
-    });
+      STATE.playbookPrinciples = await fetchPrinciples();
+      refresh();
+    }));
     const addW = el.querySelector("#addWorks");
-    if (addW) addW.addEventListener("click", async () => {
+    if (addW) addW.addEventListener("click", () => withLoading(addW, async () => {
       const input = el.querySelector("#newWorks");
       if (!input.value.trim()) return;
-      await addWorksForMe(STATE.user.uid, input.value.trim());
+      await addWorksForMe(input.value.trim());
       input.value = "";
-    });
+      STATE.worksForMe = await fetchWorksForMe();
+      refresh();
+    }));
     el.querySelectorAll("[data-daytoggle]").forEach((d) => d.addEventListener("click", async () => {
       const card = d.closest("[data-exp]");
-      const exp = STATE.experiments.find((e) => e.id === card.dataset.exp);
+      const exp = STATE.experiments.find((e) => e.id === Number(card.dataset.exp));
       if (!exp) return;
-      await toggleExperimentDay(STATE.user.uid, exp.id, Number(d.dataset.daytoggle), exp.days || []);
+      exp.days = await toggleExperimentDay(exp.id, Number(d.dataset.daytoggle));
+      refresh();
     }));
     el.querySelectorAll("[data-journey]").forEach((c) => c.addEventListener("click", () => {
-      STATE.activeJourney = STATE.journeys.find((j) => j.id === c.dataset.journey);
+      STATE.activeJourney = STATE.journeys.find((j) => j.id === Number(c.dataset.journey));
     }));
   },
 };

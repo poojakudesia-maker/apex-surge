@@ -1,126 +1,104 @@
-# Apex Surge — Setup & Deploy
+# Apex Surge — Setup & Deploy (Hostinger, no Firebase)
 
-This is the real, functional app: React-free vanilla-JS PWA (`app/`) + Firebase (Auth, Firestore,
-Cloud Functions, Hosting) + Claude (via a server-side Cloud Function — the Anthropic key never
-touches the browser). Firebase project: **thrive-9a736**.
+Everything now runs on Hostinger: the website files, the database, and the server-side code that
+calls Claude. No Firebase, no Google Cloud, no command-line tool to install. Everything below is
+done through Hostinger's **hPanel** (File Manager + phpMyAdmin) in a web browser.
 
-## 0. One-time prerequisites
+## 1. Create the database
 
-```bash
-npm install -g firebase-tools
-firebase login
-```
+hPanel → **Databases → MySQL Databases** → create a new database and a database user with a
+password. Note down all four values — you'll need them in Step 3:
 
-Make sure the CLI is pointed at the right project (already set in `.firebaserc`):
+- Database host (usually `localhost`)
+- Database name
+- Database username
+- Database password
 
-```bash
-firebase use thrive-9a736
-```
+## 2. Create the tables
 
-## 1. Enable Google sign-in
+hPanel → **Databases → phpMyAdmin** → open your new database → click the **SQL** tab → open
+`app/sql/schema.sql` from this project, copy its entire contents, paste into the SQL box → click
+**Go**. This creates every table the app needs and seeds the book catalog. One-time step.
 
-In the [Firebase Console](https://console.firebase.google.com/project/thrive-9a736/authentication/providers) →
-Authentication → Sign-in method → enable **Google**. Add your app's authorized domain
-(e.g. `thrive-9a736.web.app`, and `localhost` for local dev — usually pre-added).
+## 3. Configure your secrets
 
-## 2. Set the Anthropic API key as a Cloud Functions secret
+In `app/api/`, duplicate `config.example.php` and rename the copy to `config.php`. Open it and fill
+in:
 
-**Do this yourself in your terminal — never paste the key into chat.**
+- The four database values from Step 1
+- Your Anthropic API key (from console.anthropic.com)
+- `ANTHROPIC_WORKSPACE_ID` — only fill this in if your Anthropic account uses Workspaces (you'll
+  know because you'll see an error mentioning `anthropic-workspace-id` if it's needed)
 
-```bash
-cd functions
-firebase functions:secrets:set ANTHROPIC_API_KEY
-# paste your Anthropic API key when prompted
-```
+`config.php` is never uploaded anywhere public-facing beyond your own hosting, and `.htaccess`
+in the same folder blocks anyone from viewing it directly in a browser.
 
-This stores it in Google Secret Manager; `onboarding.ts` binds it via `secrets: [anthropicKey]` on
-every function that calls Claude, and the Anthropic SDK reads it from `process.env.ANTHROPIC_API_KEY`
-at runtime. It is never written to source, logs, or the client bundle.
+## 4. Upload
 
-## 3. Install dependencies
+Upload the **contents** of the `app` folder (not the folder itself) into `public_html` via
+hPanel File Manager — same as before. You should end up with `public_html/index.html`,
+`public_html/css/`, `public_html/js/`, `public_html/api/`, `public_html/sql/`.
 
-```bash
-cd functions && npm install && cd ..
-cd scripts && npm install && cd ..
-```
+## 5. Visit your site
 
-(`app/` needs no install — it loads the Firebase Web SDK straight from the `gstatic.com` CDN as ES
-modules, no bundler required.)
+Open your domain. You'll see a real sign-in screen (email + password — create an account right
+there, no Google account needed). Onboard, and the first lesson is written live by Claude.
 
-## 4. Seed the book catalog (one time)
+## Local development (optional, for testing changes before uploading)
 
-```bash
-gcloud auth application-default login   # if you haven't already
-cd scripts && node seedBooks.mjs
-```
-
-This writes ~8 real, well-known non-fiction books into the public `books` Firestore collection that
-the Explore tab reads from.
-
-## 5. Deploy
+If you want to test on your own computer first:
 
 ```bash
-# from the repo root
-firebase deploy --only firestore:rules,firestore:indexes,functions,hosting
+cd app
+php -S localhost:8000
 ```
 
-This builds the TypeScript functions (`npm run build` runs automatically as a predeploy hook),
-deploys all 14 Cloud Functions, publishes Firestore security rules, and pushes `app/` to Firebase
-Hosting. Your live app will be at:
-
-```
-https://thrive-9a736.web.app
-```
-
-## Local development (with emulators)
-
-```bash
-firebase emulators:start --only auth,firestore,functions
-```
-
-Then in another terminal, serve `app/` with any static server, e.g.:
-
-```bash
-cd app && python3 -m http.server 8935
-```
-
-Open `http://localhost:8935` — `app/js/firebase.js` auto-detects `localhost` and connects to the
-local Auth/Firestore/Functions emulators instead of production, so you can develop and test without
-touching real data. (The functions emulator still needs `ANTHROPIC_API_KEY` — either run
-`firebase functions:secrets:set` once so the emulator can read the stored secret, or export it in
-your shell before starting the emulator: `ANTHROPIC_API_KEY=sk-... firebase emulators:start ...`.)
+You'll also need a local MySQL/MariaDB database (e.g. via XAMPP, MAMP, or Docker) with the same
+schema imported, and a local `config.php` pointing at it. Then open `http://localhost:8000`.
 
 ## What's real vs. what's mocked
 
 Everything is real:
 
-- **Auth**: Google sign-in via Firebase Auth.
-- **Data**: Firestore, scoped per-user by security rules (`firestore.rules`) — a user can only
-  read/write their own subtree; the `books` catalog is public-read, write-locked to admin scripts.
+- **Auth**: email + password, hashed with PHP's `password_hash`, sessions via secure cookies.
+- **Data**: MySQL, scoped per-user — every query filters by the signed-in user's id; there is no
+  client-side database access at all, only your own PHP endpoints.
 - **AI**: every generative moment — onboarding's Growth Profile + first lesson, daily lessons,
   reflection → pattern + experiment diagnosis, book-to-life application, roadmap generation,
   journey tasks, the AI Coach chat, roleplay (both sides) and its scoring, and the weekly review
-  synthesis — is a live call to `claude-opus-5` through a dedicated Cloud Function
-  (`functions/src/handlers/*.ts`). Nothing is hardcoded or templated client-side.
+  synthesis — is a live call to `claude-opus-5` from PHP running on your own hosting. Nothing is
+  hardcoded or templated client-side, and your Anthropic key never reaches the browser.
 
 ## Architecture
 
 ```
-app/ (static PWA, Firebase Hosting)
+app/ (everything uploaded to public_html)
   index.html, css/style.css
-  js/firebase.js   — SDK init + emulator auto-connect
-  js/api.js        — typed wrappers over Firestore reads/writes + Cloud Function calls
-  js/state.js      — client-side session cache (Firestore is the source of truth)
-  js/screens.js    — every screen's render() + after() (event binding)
-  js/app.js        — nav engine (go/back/tabs) + auth routing
+  js/api.js      — fetch() wrappers over the PHP endpoints below
+  js/state.js    — client-side session cache
+  js/screens.js  — every screen's render() + after() (event binding)
+  js/app.js      — nav engine (go/back/tabs) + auth/session bootstrap
 
-functions/ (Cloud Functions, Node 20, TypeScript)
-  src/admin.ts       — Firebase Admin bootstrap
-  src/anthropic.ts   — Claude client + JSON/text helpers (claude-opus-5)
-  src/util.ts        — auth guard, date helpers
-  src/handlers/*.ts  — one file per product area (onboarding, daily mission, explore,
-                       growth journeys, coach, roleplay, weekly review)
+  api/ (PHP, runs on Hostinger's built-in PHP — no install needed)
+    config.php       — your secrets (git-ignored; copy from config.example.php)
+    db.php           — PDO/MySQL connection
+    helpers.php      — session guard, JSON I/O, global error handler
+    anthropic.php    — raw-HTTPS Claude client (no Composer/SDK dependency)
+    auth.php         — register / login / logout / me
+    onboarding.php   — Growth Profile + first lesson
+    missions.php     — daily mission lifecycle (lesson, quiz, diagnose, experiment, complete)
+    explore.php      — book catalog + "apply to my life"
+    growth.php       — journeys: roadmap generation, tasks, weekly advance
+    coach.php        — AI Coach chat, grounded in the user's own history
+    roleplay.php     — roleplay turns + scoring
+    playbook.php     — principles / insights / what-works / experiments
+    weekly.php       — weekly review synthesis
 
-firestore.rules      — per-user data isolation
-scripts/seedBooks.mjs — one-time public book catalog seed
+  sql/schema.sql — paste into phpMyAdmin once, creates all tables + seeds the book catalog
 ```
+
+## Cost controls
+
+Same as before — this didn't change: go to **console.anthropic.com → Billing** and set a monthly
+spend limit/alert before opening the app up to real users. Hosting cost is whatever your existing
+Hostinger plan already costs you; there's no separate cloud bill anymore.

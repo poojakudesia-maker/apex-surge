@@ -8,10 +8,9 @@
 
 | Path | What it is |
 |---|---|
-| `app/` | **The real, functional app.** Vanilla-JS PWA + Firebase (Auth, Firestore, Cloud Functions) + live Claude calls. See **[SETUP.md](./SETUP.md)** to deploy it. |
-| `functions/` | Cloud Functions (TypeScript) — every AI moment (lessons, personal diagnosis, experiments, coach, roleplay, weekly review) is a server-side call to `claude-opus-5`. The Anthropic key never touches the browser. |
-| `firestore.rules` | Per-user data isolation — a user can only read/write their own data. |
-| `scripts/` | One-time admin script to seed the public book catalog. |
+| `app/` | **The real, functional app.** Vanilla-JS PWA + a plain PHP/MySQL backend (no Firebase, no Node.js, no CLI needed) + live Claude calls. Runs entirely on ordinary shared hosting (built and tested against Hostinger). See **[SETUP.md](./SETUP.md)** to deploy it. |
+| `app/api/` | The PHP backend — every AI moment (lessons, personal diagnosis, experiments, coach, roleplay, weekly review) is a server-side call to `claude-opus-5`. The Anthropic key never touches the browser. |
+| `app/sql/schema.sql` | The MySQL schema — paste once into phpMyAdmin to create every table and seed the book catalog. |
 | `docs/` | The original **clickable, mocked prototype** (no backend) — kept for quick UX walkthroughs. Live at `https://poojakudesia-maker.github.io/apex-surge/` once GitHub Pages is enabled for `/docs`. |
 
 **Start with [SETUP.md](./SETUP.md)** to configure secrets and deploy the real app.
@@ -26,9 +25,9 @@ Onboarding → Today's lesson (Claude-authored) → "Apply this to you" reflecti
   → Weekly Review → next week's plan adapts
 ```
 
-Every step above calls Claude live, through a Firebase Cloud Function, and every artifact
-(lessons, patterns, experiments, journeys, playbook entries, coach threads, roleplay transcripts,
-weekly reviews) is a real Firestore document scoped to the signed-in user.
+Every step above calls Claude live, through a PHP endpoint on your own hosting, and every artifact
+(lessons, patterns, experiments, journeys, playbook entries, coach messages, roleplay transcripts,
+weekly reviews) is a real MySQL row scoped to the signed-in user.
 
 ## Product philosophy
 

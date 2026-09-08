@@ -1,11 +1,3 @@
-node_modules/
-functions/lib/
-functions/.secret.local
-scripts/node_modules/
-.firebase/
-firebase-debug.log
-firebase-debug.*.log
-firestore-debug.log
-ui-debug.log
+app/api/config.php
 *.local
 .DS_Store

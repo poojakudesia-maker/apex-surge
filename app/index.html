@@ -11,8 +11,12 @@
 <link rel="stylesheet" href="css/style.css" />
 <style>
   /* app-only additions on top of the shared design system */
-  .auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:24px;}
-  .google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:#fff;color:#1f1f1f;border:none;border-radius:14px;padding:14px 18px;font-weight:700;font-size:14.5px;}
+  .auth-screen{display:flex;flex-direction:column;justify-content:center;height:100%;padding:24px;}
+  input[type=email], input[type=password]{
+    width:100%;background:var(--card-soft);border:1px solid var(--border);color:var(--text);
+    border-radius:14px;padding:14px;font-size:14px;font-family:inherit;
+  }
+  input[type=email]:focus, input[type=password]:focus{outline:none;border-color:var(--accent);}
   .error-banner{background:rgba(255,92,122,.12);border:1px solid var(--danger);color:#ff9cae;border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;}
   .inline-spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite;display:inline-block;}
   .btn[data-loading="1"]{opacity:.75;pointer-events:none;}
@@ -28,10 +32,10 @@
         <div class="brand-mark">AS</div>
         <div>
           <div class="brand-name">Apex Surge</div>
-          <div class="brand-tag">Live app · Firebase + Claude</div>
+          <div class="brand-tag">Live app · PHP + MySQL + Claude</div>
         </div>
       </div>
-      <p class="shell-desc">This is the real application — Google sign-in, Firestore-backed data, and every AI moment (lessons, personal diagnosis, experiments, coach, roleplay) is a live call to Claude through a Cloud Function.</p>
+      <p class="shell-desc">This is the real application — email sign-in, MySQL-backed data, and every AI moment (lessons, personal diagnosis, experiments, coach, roleplay) is a live call to Claude through a PHP endpoint on your own hosting.</p>
       <div class="flow-picker">
         <div class="flow-picker-title">Account</div>
         <div id="acctBox" style="font-size:12.5px;color:var(--text-dim);padding:6px 2px;">Not signed in</div>

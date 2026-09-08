@@ -1,8 +1,0 @@
-{
-  "name": "apex-surge-scripts",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "firebase-admin": "latest"
-  }
-}

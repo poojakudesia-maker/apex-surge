@@ -1,8 +1,9 @@
 import {
-  auth, googleProvider, signInWithPopup, fbSignOut, onAuthStateChanged,
-} from "./firebase.js";
-import { ensureUserDoc, watchUser, watchCollection, watchBooks, todayId, watchMission } from "./api.js";
-import { STATE, clearSubs, resetSessionState } from "./state.js";
+  me, login, register, logout,
+  fetchTodayMission, fetchJourneys, fetchExperiments, fetchBooks,
+  fetchPrinciples, fetchInsights, fetchWorksForMe,
+} from "./api.js";
+import { STATE, resetSessionState } from "./state.js";
 import { SCREENS } from "./screens.js";
 
 const screensEl = document.getElementById("screens");
@@ -55,7 +56,6 @@ export function renderScreen(id) {
   captionEl.textContent = `Screen: ${id}${STATE.nav.stack.length ? "  ·  depth " + STATE.nav.stack.length : ""}`;
 }
 
-// re-render the currently visible screen (used after async data arrives)
 export function refresh() {
   if (STATE.nav.current) renderScreen(STATE.nav.current);
 }
@@ -72,87 +72,61 @@ tabbarEl.addEventListener("click", (e) => {
   if (tab) go(tab.dataset.tab, { root: true });
 });
 
-signOutBtn.addEventListener("click", () => fbSignOut(auth));
-
-function subscribeUserData(uid) {
-  STATE.unsubs.push(
-    watchUser(uid, (profile) => {
-      STATE.profile = profile;
-      if (profile?.onboardingComplete) {
-        watchMissionForToday(uid);
-        subscribeCollections(uid);
-      }
-      routeForAuthState();
-    })
-  );
-}
-
-let missionUnsub = null;
-function watchMissionForToday(uid) {
-  if (missionUnsub) missionUnsub();
-  missionUnsub = watchMission(uid, todayId(), (mission) => {
-    STATE.todayMission = mission;
-    refresh();
-  });
-  STATE.unsubs.push(missionUnsub);
-}
-
-function subscribeCollections(uid) {
-  STATE.unsubs.push(
-    watchCollection(uid, "journeys", (list) => { STATE.journeys = list; refresh(); }),
-    watchCollection(uid, "experiments", (list) => { STATE.experiments = list; refresh(); }),
-    watchCollection(uid, "playbookInsights", (list) => { STATE.playbookInsights = list; refresh(); }, { orderByField: "createdAt" }),
-    watchCollection(uid, "playbookPrinciples", (list) => { STATE.playbookPrinciples = list; refresh(); }),
-    watchCollection(uid, "worksForMe", (list) => { STATE.worksForMe = list; refresh(); }),
-    watchBooks((list) => { STATE.books = list; refresh(); })
-  );
-}
-
-function routeForAuthState() {
-  if (!STATE.user) { go("auth", { root: true }); return; }
-  if (!STATE.profile) { go("loading", { root: true }); return; }
-  if (!STATE.profile.onboardingComplete) {
-    if (!SCREENS[STATE.nav.current] || SCREENS[STATE.nav.current].tab || STATE.nav.current === "auth" || STATE.nav.current === "loading") {
-      go("onboard-why", { root: true });
-    }
-    return;
-  }
-  if (STATE.nav.current === "auth" || STATE.nav.current === "loading" || !STATE.nav.current) {
-    go("today", { root: true });
-  } else {
-    refresh();
-  }
-}
-
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    acctBox.textContent = user.displayName || user.email || "Signed in";
-    signOutBtn.style.display = "block";
-    STATE.user = user;
-    const { data } = await ensureUserDoc(user);
-    if (data) STATE.profile = data;
-    subscribeUserData(user.uid);
-    routeForAuthState();
-  } else {
-    acctBox.textContent = "Not signed in";
-    signOutBtn.style.display = "none";
-    resetSessionState();
-    STATE.user = null;
-    go("auth", { root: true });
-  }
+signOutBtn.addEventListener("click", async () => {
+  try { await logout(); } catch (e) {}
+  resetSessionState();
+  acctBox.textContent = "Not signed in";
+  signOutBtn.style.display = "none";
+  go("auth", { root: true });
 });
 
-export async function doGoogleSignIn(btn) {
-  try {
-    btn?.setAttribute("data-loading", "1");
-    await signInWithPopup(auth, googleProvider);
-  } catch (err) {
-    console.error(err);
-    alert("Sign-in failed: " + (err?.message || err));
-  } finally {
-    btn?.removeAttribute("data-loading");
-  }
+/** Fetches everything the app needs after sign-in, once. Individual
+ * screens refetch just their own slice after an action changes it. */
+export async function loadAppData() {
+  const [mission, journeys, experiments, books, principles, insights, works] = await Promise.all([
+    fetchTodayMission(), fetchJourneys(), fetchExperiments(), fetchBooks(),
+    fetchPrinciples(), fetchInsights(), fetchWorksForMe(),
+  ]);
+  STATE.todayMission = mission;
+  STATE.journeys = journeys;
+  STATE.experiments = experiments;
+  STATE.books = books;
+  STATE.playbookPrinciples = principles;
+  STATE.playbookInsights = insights;
+  STATE.worksForMe = works;
 }
 
-// initial paint
-renderScreen("loading");
+export async function afterSignedIn(user) {
+  STATE.user = { id: user.id, email: user.email, displayName: user.displayName };
+  STATE.profile = user;
+  acctBox.textContent = user.displayName || user.email || "Signed in";
+  signOutBtn.style.display = "block";
+
+  if (!user.onboardingComplete) {
+    go("onboard-why", { root: true });
+    return;
+  }
+  await loadAppData();
+  go("today", { root: true });
+}
+
+export async function doLogin(email, password) {
+  const user = await login(email, password);
+  await afterSignedIn(user);
+}
+
+export async function doRegister(email, password, displayName) {
+  const user = await register(email, password, displayName);
+  await afterSignedIn(user);
+}
+
+// ---- boot ----
+(async function boot() {
+  renderScreen("loading");
+  try {
+    const user = await me();
+    await afterSignedIn(user);
+  } catch (e) {
+    go("auth", { root: true });
+  }
+})();

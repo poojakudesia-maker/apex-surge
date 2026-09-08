@@ -1,104 +1,78 @@
-// Apex Surge — typed wrappers around Cloud Functions + direct Firestore reads/writes
-import {
-  db, functions, httpsCallable,
-  doc, getDoc, setDoc, updateDoc, onSnapshot,
-  collection, addDoc, query, orderBy, limit, where, serverTimestamp,
-} from "./firebase.js";
+// Apex Surge — API client for the PHP + MySQL backend (no Firebase)
 
-export { db, doc, updateDoc };
-
-function call(name) {
-  const fn = httpsCallable(functions, name);
-  return (data) => fn(data).then((r) => r.data);
-}
-
-export const generateGrowthProfile = call("generateGrowthProfile");
-export const generateDailyMission = call("generateDailyMission");
-export const diagnoseReflection = call("diagnoseReflection");
-export const markExperimentDayFn = call("markExperimentDay");
-export const adaptExperiment = call("adaptExperiment");
-export const completeMission = call("completeMission");
-export const applyBookToLife = call("applyBookToLife");
-export const generateRoadmap = call("generateRoadmap");
-export const generateJourneyTask = call("generateJourneyTask");
-export const advanceJourneyWeek = call("advanceJourneyWeek");
-export const coachReply = call("coachReply");
-export const roleplayReply = call("roleplayReply");
-export const roleplayFeedback = call("roleplayFeedback");
-export const synthesizeWeeklyReview = call("synthesizeWeeklyReview");
-
-function todayId() {
-  return new Date().toISOString().slice(0, 10);
-}
-export { todayId };
-
-export function userDocRef(uid) {
-  return doc(db, "users", uid);
-}
-
-export async function ensureUserDoc(user) {
-  const ref = userDocRef(user.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      displayName: user.displayName || "",
-      email: user.email || "",
-      photoURL: user.photoURL || "",
-      onboardingComplete: false,
-      createdAt: serverTimestamp(),
-    });
-    return { exists: false, data: null };
+async function request(path, opts = {}) {
+  const res = await fetch(path, {
+    credentials: "include",
+    headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+    ...opts,
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* empty body */ }
+  if (!res.ok) {
+    const err = new Error((data && data.error) || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
   }
-  return { exists: true, data: snap.data() };
+  return data;
 }
 
-export function watchUser(uid, cb) {
-  return onSnapshot(userDocRef(uid), (snap) => cb(snap.exists() ? snap.data() : null));
+function post(path, body) {
+  return request(path, { method: "POST", body: JSON.stringify(body ?? {}) });
+}
+function get(path) {
+  return request(path, { method: "GET" });
 }
 
-export function watchMission(uid, missionId, cb) {
-  return onSnapshot(doc(db, "users", uid, "missions", missionId), (snap) =>
-    cb(snap.exists() ? { id: snap.id, ...snap.data() } : null)
-  );
-}
+// ---- auth ----
+export const register = (email, password, displayName) =>
+  post("api/auth.php?action=register", { email, password, displayName }).then((r) => r.user);
+export const login = (email, password) =>
+  post("api/auth.php?action=login", { email, password }).then((r) => r.user);
+export const logout = () => post("api/auth.php?action=logout", {});
+export const me = () => get("api/auth.php?action=me").then((r) => r.user);
 
-export function watchCollection(uid, sub, cb, opts = {}) {
-  let ref = collection(db, "users", uid, sub);
-  let q = ref;
-  if (opts.orderByField) q = query(ref, orderBy(opts.orderByField, opts.direction || "desc"));
-  if (opts.whereField) q = query(ref, where(opts.whereField, "==", opts.whereValue));
-  if (opts.limitTo) q = query(q, limit(opts.limitTo));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
-}
+// ---- onboarding / missions ----
+export const generateGrowthProfile = (data) => post("api/onboarding.php", data);
+export const fetchTodayMission = () => get("api/missions.php?action=today").then((r) => r.mission);
+export const generateDailyMission = () => post("api/missions.php?action=generateDaily", {}).then((r) => r.mission);
+export const submitQuizAnswer = (missionId, answer) => post("api/missions.php?action=quizAnswer", { missionId, answer });
+export const diagnoseReflection = ({ missionId, reflectionText }) =>
+  post("api/missions.php?action=diagnose", { missionId, reflectionText });
+export const markExperimentDayFn = ({ missionId, dayIndex, done }) =>
+  post("api/missions.php?action=markDay", { missionId, dayIndex, done });
+export const adaptExperiment = ({ missionId, missedReason }) =>
+  post("api/missions.php?action=adapt", { missionId, missedReason });
+export const completeMission = ({ missionId }) => post("api/missions.php?action=complete", { missionId });
 
-export function watchBooks(cb) {
-  return onSnapshot(collection(db, "books"), (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
-}
+// ---- explore / books ----
+export const fetchBooks = () => get("api/explore.php?action=books").then((r) => r.books);
+export const applyBookToLife = (data) => post("api/explore.php?action=applyToLife", data);
 
-export async function getBook(id) {
-  const snap = await getDoc(doc(db, "books", id));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
-}
+// ---- growth journeys ----
+export const fetchJourneys = () => get("api/growth.php?action=list").then((r) => r.journeys);
+export const generateRoadmap = (data) => post("api/growth.php?action=generateRoadmap", data);
+export const generateJourneyTask = ({ journeyId }) => post("api/growth.php?action=generateTask", { journeyId });
+export const advanceJourneyWeek = ({ journeyId }) => post("api/growth.php?action=advanceWeek", { journeyId });
 
-export async function toggleExperimentDay(uid, experimentId, dayIndex, days) {
-  const newDays = [...days];
-  newDays[dayIndex] = !newDays[dayIndex];
-  await updateDoc(doc(db, "users", uid, "experiments", experimentId), { days: newDays });
-  return newDays;
-}
+// ---- coach + roleplay ----
+export const coachReply = ({ threadId, message }) => post("api/coach.php?action=reply", { threadId, message });
+export const roleplayReply = ({ roleplayId, scenario, message }) =>
+  post("api/roleplay.php?action=reply", { roleplayId, scenario, message });
+export const roleplayFeedback = ({ roleplayId }) => post("api/roleplay.php?action=feedback", { roleplayId });
 
-export async function addPrinciple(uid, text) {
-  await addDoc(collection(db, "users", uid, "playbookPrinciples"), { text, createdAt: serverTimestamp() });
-}
+// ---- playbook ----
+export const fetchPrinciples = () => get("api/playbook.php?action=principles").then((r) => r.items);
+export const addPrinciple = (text) => post("api/playbook.php?action=addPrinciple", { text });
+export const fetchInsights = () => get("api/playbook.php?action=insights").then((r) => r.items);
+export const fetchWorksForMe = () => get("api/playbook.php?action=works").then((r) => r.items);
+export const addWorksForMe = (text) => post("api/playbook.php?action=addWorks", { text });
+export const fetchExperiments = () => get("api/playbook.php?action=experiments").then((r) => r.items);
+export const toggleExperimentDay = (experimentId, dayIndex) =>
+  post("api/playbook.php?action=toggleExperimentDay", { experimentId, dayIndex }).then((r) => r.days);
 
-export async function addWorksForMe(uid, text) {
-  await addDoc(collection(db, "users", uid, "worksForMe"), { text, createdAt: serverTimestamp() });
-}
+// ---- weekly review ----
+export const synthesizeWeeklyReview = (data) => post("api/weekly.php?action=synthesize", data);
 
-export function watchThreadMessages(uid, threadId, cb) {
-  const ref = query(
-    collection(db, "users", uid, "coachThreads", threadId, "messages"),
-    orderBy("createdAt", "asc")
-  );
-  return onSnapshot(ref, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+export function todayId() {
+  return new Date().toISOString().slice(0, 10);
 }
