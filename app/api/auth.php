@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/smtp.php';
 ini_session();
 
 function user_public_row(array $row): array {
@@ -22,15 +23,12 @@ function user_public_row(array $row): array {
     ];
 }
 
-/** Sends the 6-digit verification code. Uses PHP's built-in mail() — no
- * extra service/config needed. Deliverability on shared hosting varies;
- * if codes land in spam, an SMTP-based mailer can replace this function
- * later without touching anything else. */
-function send_verification_email(string $email, string $code): void {
+/** Sends the 6-digit verification code via SMTP (see smtp.php) — falls
+ * back to PHP's mail() automatically if SMTP_HOST isn't configured. */
+function send_verification_email(string $email, string $code): bool {
     $subject = 'Your Apex Surge verification code';
     $body = "Your verification code is: $code\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, you can ignore this email.";
-    $headers = 'From: no-reply@' . ($_SERVER['HTTP_HOST'] ?? 'apexsurge.app');
-    @mail($email, $subject, $body, $headers);
+    return smtp_send_mail($email, $subject, $body);
 }
 
 $action = $_GET['action'] ?? '';
@@ -59,8 +57,8 @@ if ($action === 'signupStart') {
         'code' => $code,
         'expires' => time() + 600,
     ];
-    send_verification_email($email, $code);
-    json_out(['ok' => true, 'email' => $email]);
+    $sent = send_verification_email($email, $code);
+    json_out(['ok' => true, 'email' => $email, 'emailSent' => $sent]);
 }
 
 if ($action === 'signupResend') {
@@ -70,8 +68,8 @@ if ($action === 'signupResend') {
     $pending['code'] = $code;
     $pending['expires'] = time() + 600;
     $_SESSION['pending_signup'] = $pending;
-    send_verification_email($pending['email'], $code);
-    json_out(['ok' => true]);
+    $sent = send_verification_email($pending['email'], $code);
+    json_out(['ok' => true, 'emailSent' => $sent]);
 }
 
 // Step 2 of signup: confirm the code -> create the account for real.

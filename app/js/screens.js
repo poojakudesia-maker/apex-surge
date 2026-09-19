@@ -136,6 +136,7 @@ SCREENS["auth"] = {
       return `<div class="auth-screen" style="text-align:left;align-items:stretch;">
         ${authHeader()}
         <div id="authError"></div>
+        ${STATE.ui.signupEmailFailed ? errorHtml("We couldn't send that email — your hosting's mail sending may not be configured yet. Ask whoever set up the app to check the SMTP settings in config.php.") : ""}
         <p class="sub" style="text-align:center;">We sent a 6-digit code to<br><b style="color:var(--text);">${STATE.ui.pendingSignupEmail || "your email"}</b></p>
         <div class="field-label" style="margin-top:0;text-align:center;">Verification code</div>
         <input type="text" id="authCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" class="pin-input" />
@@ -174,7 +175,9 @@ SCREENS["auth"] = {
       });
       el.querySelector("#authResend").addEventListener("click", (e) => {
         e.preventDefault();
-        doSignupResend().catch((err) => { el.querySelector("#authError").innerHTML = errorHtml(err.message); });
+        doSignupResend()
+          .then((res) => { STATE.ui.signupEmailFailed = res && res.emailSent === false; refresh(); })
+          .catch((err) => { el.querySelector("#authError").innerHTML = errorHtml(err.message); });
       });
       const submit = el.querySelector("#authSubmit");
       submit.addEventListener("click", () => withLoading(submit, async () => {
@@ -202,8 +205,9 @@ SCREENS["auth"] = {
       try {
         if (mode === "register") {
           const name = el.querySelector("#authName").value.trim();
-          await doSignupStart(email, pin, name);
+          const res = await doSignupStart(email, pin, name);
           STATE.ui.pendingSignupEmail = email;
+          STATE.ui.signupEmailFailed = res && res.emailSent === false;
           STATE.ui.authMode = "verify";
           refresh();
         } else {
