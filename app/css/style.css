@@ -18,7 +18,7 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;}
+html,body{margin:0;padding:0;height:100%;}
 body{
   background: radial-gradient(1200px 800px at 15% -10%, #1b1330 0%, transparent 60%),
               radial-gradient(1000px 700px at 100% 0%, #0e2130 0%, transparent 55%),
@@ -27,71 +27,30 @@ body{
   min-height:100vh;
 }
 button{font-family:inherit;cursor:pointer;}
-.shell{
+
+/* ---------- app shell (production layout) ---------- */
+/* Full-bleed on phones; a centered app-width column on wider screens —
+   no fake device bezel, this is the real interface end users see. */
+.app-shell{
+  min-height:100vh;
+  min-height:100dvh;
   display:flex;
-  gap:36px;
-  max-width:1280px;
-  margin:0 auto;
-  padding:32px 24px 64px;
-  align-items:flex-start;
+  justify-content:center;
 }
-
-/* ---------- left info panel ---------- */
-.shell-info{
-  width:300px;
-  flex-shrink:0;
-  position:sticky;
-  top:32px;
-}
-.brand{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-.brand-mark{
-  width:42px;height:42px;border-radius:12px;
-  background:linear-gradient(135deg,var(--accent),#4a34c9);
-  display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:14px;letter-spacing:0.5px;
-  box-shadow:0 8px 20px rgba(124,92,255,0.35);
-}
-.brand-name{font-weight:800;font-size:18px;}
-.brand-tag{font-size:12px;color:var(--text-dim);}
-.shell-desc{font-size:13px;line-height:1.6;color:var(--text-dim);margin-bottom:22px;}
-.flow-picker{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:14px;
-}
-.flow-picker-title{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-faint);margin-bottom:10px;font-weight:700;}
-.flow-btn{
-  display:block;width:100%;text-align:left;
-  background:transparent;border:1px solid transparent;color:var(--text);
-  padding:9px 10px;border-radius:10px;font-size:13px;margin-bottom:2px;
-  transition:background .15s, border-color .15s;
-}
-.flow-btn:hover{background:var(--panel-2);border-color:var(--border);}
-.reset-row{margin-top:16px;}
-.ghost-btn{
+.app-frame{
   width:100%;
-  background:transparent;border:1px dashed var(--border);color:var(--text-faint);
-  padding:9px 10px;border-radius:10px;font-size:12px;
-}
-.ghost-btn:hover{color:var(--text-dim);border-color:var(--text-faint);}
-
-/* ---------- phone stage ---------- */
-.phone-stage{flex:1;display:flex;flex-direction:column;align-items:center;}
-.phone{
-  width:390px;height:844px;
-  background:var(--bg);
-  border-radius:46px;
-  border:10px solid #05060a;
-  box-shadow:0 30px 80px rgba(0,0,0,0.55), inset 0 0 0 1px #1c2029;
+  max-width:480px;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
   position:relative;
-  overflow:hidden;
-  display:flex;flex-direction:column;
+  background:var(--bg);
 }
-.notch{
-  position:absolute;top:0;left:50%;transform:translateX(-50%);
-  width:140px;height:26px;background:#05060a;border-radius:0 0 18px 18px;
-  z-index:50;
+@media (min-width:481px){
+  .app-frame{
+    box-shadow:0 0 0 1px var(--border), 0 30px 80px rgba(0,0,0,.45);
+  }
 }
 .screens{
   flex:1;
@@ -104,11 +63,11 @@ button{font-family:inherit;cursor:pointer;}
 .screen{
   display:none;
   min-height:100%;
-  padding:44px 18px 18px;
+  padding:calc(env(safe-area-inset-top,0px) + 20px) 18px 18px;
   animation:fadein .28s ease;
 }
 .screen.active{display:block;}
-.screen.no-pad{padding-top:0;}
+.screen.no-pad{padding-top:env(safe-area-inset-top,0px);}
 @keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
 .tabbar{
@@ -116,7 +75,7 @@ button{font-family:inherit;cursor:pointer;}
   border-top:1px solid var(--border);
   background:rgba(18,21,28,0.92);
   backdrop-filter:blur(6px);
-  padding:8px 6px 14px;
+  padding:8px 6px calc(env(safe-area-inset-bottom,0px) + 8px);
 }
 .tabbar.visible{display:flex;}
 .tab{
@@ -126,7 +85,6 @@ button{font-family:inherit;cursor:pointer;}
 }
 .tab-ico{font-size:16px;line-height:1;}
 .tab.active{color:var(--accent);}
-.stage-caption{margin-top:14px;font-size:12px;color:var(--text-faint);}
 
 /* ---------- generic building blocks ---------- */
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
@@ -312,8 +270,3 @@ input[type=range]::-webkit-slider-thumb{
 .pb-tab{padding:8px 12px;border-radius:10px;background:var(--card-soft);border:1px solid var(--border);font-size:12.5px;color:var(--text-dim);white-space:nowrap;font-weight:700;}
 .pb-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 
-@media (max-width: 760px){
-  .shell{flex-direction:column;align-items:center;}
-  .shell-info{position:static;width:100%;max-width:390px;}
-  .phone{width:100%;max-width:390px;height:80vh;min-height:640px;border-width:8px;border-radius:32px;}
-}

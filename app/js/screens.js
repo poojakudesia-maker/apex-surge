@@ -8,7 +8,7 @@ import {
   addPrinciple, addWorksForMe, submitQuizAnswer, fetchJourneys, fetchExperiments,
   fetchPrinciples, fetchWorksForMe, me,
 } from "./api.js";
-import { doLogin, doRegister, loadAppData } from "./app.js";
+import { doLogin, doSignupStart, doSignupVerify, doSignupResend, loadAppData, signOutUser } from "./app.js";
 
 // go/refresh are attached lazily to avoid a circular-import race
 let _nav = null;
@@ -120,22 +120,42 @@ SCREENS["loading"] = {
   },
 };
 
+function authHeader() {
+  return `<div class="center-col" style="margin-bottom:22px;">
+    <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--accent),#4a34c9);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;box-shadow:0 16px 40px rgba(124,92,255,.4);margin-bottom:14px;">AS</div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:6px;">Apex Surge</div>
+    <div style="color:var(--text-dim);font-size:13px;line-height:1.6;max-width:260px;text-align:center;">Don't just learn what the world's best books say. Turn their ideas into a program that helps you actually change.</div>
+  </div>`;
+}
+
 SCREENS["auth"] = {
   render() {
     const mode = STATE.ui.authMode || "login";
+
+    if (mode === "verify") {
+      return `<div class="auth-screen" style="text-align:left;align-items:stretch;">
+        ${authHeader()}
+        <div id="authError"></div>
+        <p class="sub" style="text-align:center;">We sent a 6-digit code to<br><b style="color:var(--text);">${STATE.ui.pendingSignupEmail || "your email"}</b></p>
+        <div class="field-label" style="margin-top:0;text-align:center;">Verification code</div>
+        <input type="text" id="authCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" class="pin-input" />
+        <button class="btn" id="authSubmit" style="margin-top:18px;">Verify & create account</button>
+        <p class="sub" style="text-align:center;margin-top:16px;">
+          Didn't get it? <a href="#" id="authResend" style="color:var(--accent);font-weight:600;">Resend code</a>
+          &nbsp;·&nbsp; <a href="#" id="authBack" style="color:var(--text-faint);">Use a different email</a>
+        </p>
+      </div>`;
+    }
+
     return `<div class="auth-screen" style="text-align:left;align-items:stretch;">
-      <div class="center-col" style="margin-bottom:22px;">
-        <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--accent),#4a34c9);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;box-shadow:0 16px 40px rgba(124,92,255,.4);margin-bottom:14px;">AS</div>
-        <div style="font-size:22px;font-weight:800;margin-bottom:6px;">Apex Surge</div>
-        <div style="color:var(--text-dim);font-size:13px;line-height:1.6;max-width:260px;text-align:center;">Don't just learn what the world's best books say. Turn their ideas into a program that helps you actually change.</div>
-      </div>
+      ${authHeader()}
       <div id="authError"></div>
       ${mode === "register" ? `<div class="field-label" style="margin-top:0;">Name</div><input type="text" id="authName" placeholder="What should we call you?" />` : ""}
       <div class="field-label" style="margin-top:${mode === "register" ? "14" : "0"}px;">Email</div>
       <input type="email" id="authEmail" placeholder="you@example.com" />
-      <div class="field-label">Password</div>
-      <input type="password" id="authPassword" placeholder="${mode === "register" ? "At least 8 characters" : "Your password"}" />
-      <button class="btn" id="authSubmit" style="margin-top:18px;">${mode === "register" ? "Create account" : "Sign in"}</button>
+      <div class="field-label">${mode === "register" ? "Choose a 4-digit PIN" : "PIN"}</div>
+      <input type="text" id="authPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="${mode === "register" ? "4 digits" : "••••"}" class="pin-input" />
+      <button class="btn" id="authSubmit" style="margin-top:18px;">${mode === "register" ? "Send verification code" : "Sign in"}</button>
       <p class="sub" style="text-align:center;margin-top:16px;">
         ${mode === "register" ? "Already have an account?" : "New here?"}
         <a href="#" id="authToggle" style="color:var(--accent);font-weight:600;">${mode === "register" ? "Sign in" : "Create one"}</a>
@@ -144,6 +164,31 @@ SCREENS["auth"] = {
   },
   after(el) {
     const mode = STATE.ui.authMode || "login";
+
+    if (mode === "verify") {
+      el.querySelector("#authCode").focus();
+      el.querySelector("#authBack").addEventListener("click", (e) => {
+        e.preventDefault();
+        STATE.ui.authMode = "register";
+        refresh();
+      });
+      el.querySelector("#authResend").addEventListener("click", (e) => {
+        e.preventDefault();
+        doSignupResend().catch((err) => { el.querySelector("#authError").innerHTML = errorHtml(err.message); });
+      });
+      const submit = el.querySelector("#authSubmit");
+      submit.addEventListener("click", () => withLoading(submit, async () => {
+        el.querySelector("#authError").innerHTML = "";
+        const code = el.querySelector("#authCode").value.trim();
+        try {
+          await doSignupVerify(code);
+        } catch (e) {
+          el.querySelector("#authError").innerHTML = errorHtml(e.message || "Something went wrong.");
+        }
+      }));
+      return;
+    }
+
     el.querySelector("#authToggle").addEventListener("click", (e) => {
       e.preventDefault();
       STATE.ui.authMode = mode === "register" ? "login" : "register";
@@ -153,13 +198,16 @@ SCREENS["auth"] = {
     submit.addEventListener("click", () => withLoading(submit, async () => {
       el.querySelector("#authError").innerHTML = "";
       const email = el.querySelector("#authEmail").value.trim();
-      const password = el.querySelector("#authPassword").value;
+      const pin = el.querySelector("#authPin").value.trim();
       try {
         if (mode === "register") {
           const name = el.querySelector("#authName").value.trim();
-          await doRegister(email, password, name);
+          await doSignupStart(email, pin, name);
+          STATE.ui.pendingSignupEmail = email;
+          STATE.ui.authMode = "verify";
+          refresh();
         } else {
-          await doLogin(email, password);
+          await doLogin(email, pin);
         }
       } catch (e) {
         el.querySelector("#authError").innerHTML = errorHtml(e.message || "Something went wrong.");
@@ -979,11 +1027,14 @@ SCREENS["playbook"] = {
           <div class="card card-soft" data-go="growth-detail" data-journey="${j.id}"><div class="card-row"><span style="font-weight:700;font-size:13.5px;">${j.goalTitle}</span><span class="tag gold">Week ${j.currentWeek}/${j.weeks.length}</span></div>
           <div class="progressbar" style="margin-top:8px;"><div style="width:${j.progressPct}%"></div></div></div>`).join("")}` : ""}`;
     }
-    return `<div class="h2">My Playbook</div><p class="sub">Everything Apex Surge has learned about you.</p>
+    return `<div class="card-row" style="margin-bottom:2px;"><div class="h2" style="margin-bottom:0;">My Playbook</div>
+      <button class="btn ghost small" id="signOutLink" style="width:auto;">Sign out</button></div>
+    <p class="sub">Signed in as ${STATE.profile?.email || ""} · Everything Apex Surge has learned about you.</p>
     <div class="playbook-tabs">${tabs.map(([id,label]) => `<button class="pb-tab ${tab===id?'active':''}" data-pbtab="${id}">${label}</button>`).join("")}</div>
     <div id="pbBody">${body}</div>`;
   },
   after(el) {
+    el.querySelector("#signOutLink").addEventListener("click", () => { if (confirm("Sign out?")) signOutUser(); });
     el.querySelectorAll("[data-pbtab]").forEach((t) => t.addEventListener("click", () => { STATE.ui.playbookTab = t.dataset.pbtab; refresh(); }));
     const addP = el.querySelector("#addPrinciple");
     if (addP) addP.addEventListener("click", () => withLoading(addP, async () => {

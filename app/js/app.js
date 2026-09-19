@@ -1,5 +1,5 @@
 import {
-  me, login, register, logout,
+  me, login, signupStart, signupVerify, signupResend, logout,
   fetchTodayMission, fetchJourneys, fetchExperiments, fetchBooks,
   fetchPrinciples, fetchInsights, fetchWorksForMe,
 } from "./api.js";
@@ -8,9 +8,6 @@ import { SCREENS } from "./screens.js";
 
 const screensEl = document.getElementById("screens");
 const tabbarEl = document.getElementById("tabbar");
-const captionEl = document.getElementById("stageCaption");
-const acctBox = document.getElementById("acctBox");
-const signOutBtn = document.getElementById("signOutBtn");
 
 function stopAnyLessonAudio() {
   try { window.speechSynthesis?.cancel(); } catch (e) {}
@@ -53,7 +50,6 @@ export function renderScreen(id) {
   } else {
     tabbarEl.classList.remove("visible");
   }
-  captionEl.textContent = `Screen: ${id}${STATE.nav.stack.length ? "  ·  depth " + STATE.nav.stack.length : ""}`;
 }
 
 export function refresh() {
@@ -72,13 +68,11 @@ tabbarEl.addEventListener("click", (e) => {
   if (tab) go(tab.dataset.tab, { root: true });
 });
 
-signOutBtn.addEventListener("click", async () => {
+export async function signOutUser() {
   try { await logout(); } catch (e) {}
   resetSessionState();
-  acctBox.textContent = "Not signed in";
-  signOutBtn.style.display = "none";
   go("auth", { root: true });
-});
+}
 
 /** Fetches everything the app needs after sign-in, once. Individual
  * screens refetch just their own slice after an action changes it. */
@@ -99,8 +93,6 @@ export async function loadAppData() {
 export async function afterSignedIn(user) {
   STATE.user = { id: user.id, email: user.email, displayName: user.displayName };
   STATE.profile = user;
-  acctBox.textContent = user.displayName || user.email || "Signed in";
-  signOutBtn.style.display = "block";
 
   if (!user.onboardingComplete) {
     go("onboard-why", { root: true });
@@ -110,13 +102,23 @@ export async function afterSignedIn(user) {
   go("today", { root: true });
 }
 
-export async function doLogin(email, password) {
-  const user = await login(email, password);
+export async function doLogin(email, pin) {
+  const user = await login(email, pin);
   await afterSignedIn(user);
 }
 
-export async function doRegister(email, password, displayName) {
-  const user = await register(email, password, displayName);
+/** Step 1 of signup — sends the verification code, doesn't create the account yet. */
+export async function doSignupStart(email, pin, displayName) {
+  return signupStart(email, pin, displayName);
+}
+
+export async function doSignupResend() {
+  return signupResend();
+}
+
+/** Step 2 of signup — confirms the code, which is when the account actually gets created. */
+export async function doSignupVerify(code) {
+  const user = await signupVerify(code);
   await afterSignedIn(user);
 }
 

@@ -41,8 +41,16 @@ hPanel File Manager — same as before. You should end up with `public_html/inde
 
 ## 5. Visit your site
 
-Open your domain. You'll see a real sign-in screen (email + password — create an account right
-there, no Google account needed). Onboard, and the first lesson is written live by Claude.
+Open your domain. You'll see a real sign-in screen — create an account with your email and a
+4-digit PIN (no Google account needed). Signup sends a 6-digit verification code to that inbox
+once; enter it to confirm the account, and from then on you sign in with just your email + PIN.
+Onboard, and the first lesson is written live by Claude.
+
+> **Note on the verification email**: it's sent with PHP's built-in `mail()` function, which works
+> out of the box on most Hostinger plans but isn't guaranteed to land in the inbox (it can go to
+> spam, or silently not send, depending on your hosting's mail setup). Check spam if it doesn't
+> arrive within a minute. If delivery is unreliable, that's a hosting-mail-configuration issue, not
+> an app bug — say so and I can swap in an SMTP-based mailer later without changing anything else.
 
 ## Local development (optional, for testing changes before uploading)
 
@@ -60,7 +68,10 @@ schema imported, and a local `config.php` pointing at it. Then open `http://loca
 
 Everything is real:
 
-- **Auth**: email + password, hashed with PHP's `password_hash`, sessions via secure cookies.
+- **Auth**: email + 4-digit PIN (hashed with PHP's `password_hash` — same column, same function, a
+  password just happens to be digits now), with a one-time email verification code at signup
+  (held only in the session until confirmed — no database schema change), sessions via secure
+  cookies.
 - **Data**: MySQL, scoped per-user — every query filters by the signed-in user's id; there is no
   client-side database access at all, only your own PHP endpoints.
 - **AI**: every generative moment — onboarding's Growth Profile + first lesson, daily lessons,

@@ -24,10 +24,13 @@ function get(path) {
 }
 
 // ---- auth ----
-export const register = (email, password, displayName) =>
-  post("api/auth.php?action=register", { email, password, displayName }).then((r) => r.user);
-export const login = (email, password) =>
-  post("api/auth.php?action=login", { email, password }).then((r) => r.user);
+export const signupStart = (email, pin, displayName) =>
+  post("api/auth.php?action=signupStart", { email, pin, displayName });
+export const signupResend = () => post("api/auth.php?action=signupResend", {});
+export const signupVerify = (code) =>
+  post("api/auth.php?action=signupVerify", { code }).then((r) => r.user);
+export const login = (email, pin) =>
+  post("api/auth.php?action=login", { email, pin }).then((r) => r.user);
 export const logout = () => post("api/auth.php?action=logout", {});
 export const me = () => get("api/auth.php?action=me").then((r) => r.user);
 
