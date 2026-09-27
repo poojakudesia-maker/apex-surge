@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Compound</title>
+<meta name="description" content="Turn what you read into who you become. Learn the best productivity and communication books in 10 minutes a day.">
+<meta name="theme-color" content="#6242F5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- WELCOME -->
+  <section class="screen" id="s-welcome">
+    <div class="scroll" style="display:flex;flex-direction:column">
+      <div class="hero">
+        <div class="glow"></div>
+        <div class="logomark">C</div>
+        <h1>Turn what you read into <em>who you become.</em></h1>
+        <p>Pick a skill. Get a personal path built from the best books. Learn it in 10 minutes a day and actually apply it.</p>
+        <div class="proof">
+          <div><div class="n">300+</div><div class="l">book<br>breakdowns</div></div>
+          <div><div class="n">10 min</div><div class="l">a day,<br>that's it</div></div>
+          <div><div class="n">Apply</div><div class="l">not just<br>read</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn" data-go="s-goal">Get started &nbsp;→</button>
+      <div class="hint" style="margin-top:10px">No password. Learn in 30 seconds.</div>
+    </div>
+  </section>
+
+  <!-- OB 1: GOAL -->
+  <section class="screen" id="s-goal">
+    <div class="obtop"><div class="backb" data-go="s-welcome">←</div><div class="progress"><i style="width:16%"></i></div><div class="obstep">1/6</div></div>
+    <div class="obhead"><h2>What do you want to get better at?</h2><p>Pick your main focus. You can add more anytime.</p></div>
+    <div class="scroll">
+      <div class="choices" data-single data-field="goal">
+        <div class="choice" aria-checked="true" data-val="Communication"><div class="ic">💬</div><div><div class="t">Communication</div><div class="d">Speak up, persuade, handle hard talks</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Productivity"><div class="ic">⚡</div><div><div class="t">Productivity & Focus</div><div class="d">Do deep work, beat procrastination</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Interview Prep"><div class="ic">🎯</div><div><div class="t">Interview Prep</div><div class="d">Land the role, answer with confidence</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Leadership"><div class="ic">🧭</div><div><div class="t">Leadership</div><div class="d">Lead teams, give feedback, decide</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Confidence"><div class="ic">🔥</div><div><div class="t">Confidence</div><div class="d">Self-belief, presence, less self-doubt</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Habits"><div class="ic">🧠</div><div><div class="t">Better Habits</div><div class="d">Build systems that actually stick</div></div><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="footer"><button class="btn" data-go="s-focus">Continue &nbsp;→</button></div>
+  </section>
+
+  <!-- OB 2: SMART FOCUS -->
+  <section class="screen" id="s-focus">
+    <div class="obtop"><div class="backb" data-go="s-goal">←</div><div class="progress"><i style="width:33%"></i></div><div class="obstep">2/6</div></div>
+    <div class="obhead"><h2>Let's make that specific</h2><p>Pick the outcomes you want. This turns a vague goal into something we can measure.</p></div>
+    <div class="scroll">
+      <div class="oblabel">I want to be able to…</div>
+      <div class="choices" data-field="focus_areas">
+        <div class="choice" aria-checked="true" data-val="Speak up more in meetings"><div class="ic">🗣️</div><div><div class="t">Speak up more in meetings</div></div><div class="ck">✓</div></div>
+        <div class="choice" aria-checked="true" data-val="Handle difficult conversations calmly"><div class="ic">🤝</div><div><div class="t">Handle difficult conversations calmly</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Give clear, direct feedback"><div class="ic">📣</div><div><div class="t">Give clear, direct feedback</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Present with confidence"><div class="ic">🎤</div><div><div class="t">Present with confidence</div></div><div class="ck">✓</div></div>
+        <div class="choice" data-val="Persuade and influence stakeholders"><div class="ic">🧲</div><div><div class="t">Persuade and influence stakeholders</div></div><div class="ck">✓</div></div>
+      </div>
+      <div class="oblabel">Give me a target</div>
+      <div class="segwrap" data-single data-field="target">
+        <div class="seg" data-val="2w"><div class="big">2w</div><div><div class="t">A quick win</div><div class="d">Feel a difference in 2 weeks</div></div><div class="ck">✓</div></div>
+        <div class="seg" aria-checked="true" data-val="30d"><div class="big">30d</div><div><div class="t">Build the habit</div><div class="d">Noticeable change in 30 days</div></div><div class="ck">✓</div></div>
+        <div class="seg" data-val="90d"><div class="big">90d</div><div><div class="t">Go deep</div><div class="d">Real mastery over 90 days</div></div><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="footer"><button class="btn" data-go="s-role">Continue &nbsp;→</button></div>
+  </section>
+
+  <!-- OB 3: ROLE -->
+  <section class="screen" id="s-role">
+    <div class="obtop"><div class="backb" data-go="s-focus">←</div><div class="progress"><i style="width:50%"></i></div><div class="obstep">3/6</div></div>
+    <div class="obhead"><h2>What best describes you?</h2><p>So examples fit your world, not a generic one.</p></div>
+    <div class="scroll">
+      <div class="choices two" data-single data-field="role">
+        <div class="choice two-up" aria-checked="true" data-val="Individual contributor"><div class="ic">👤</div><div class="t">Individual contributor</div><div class="ck">✓</div></div>
+        <div class="choice two-up" data-val="Manager / lead"><div class="ic">👥</div><div class="t">Manager / lead</div><div class="ck">✓</div></div>
+        <div class="choice two-up" data-val="Student"><div class="ic">🎓</div><div class="t">Student</div><div class="ck">✓</div></div>
+        <div class="choice two-up" data-val="Job seeker"><div class="ic">🔎</div><div class="t">Job seeker</div><div class="ck">✓</div></div>
+        <div class="choice two-up" data-val="Founder"><div class="ic">🚀</div><div class="t">Founder</div><div class="ck">✓</div></div>
+        <div class="choice two-up" data-val="Just for me"><div class="ic">✨</div><div class="t">Just for me</div><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="footer"><button class="btn" data-go="s-level">Continue &nbsp;→</button></div>
+  </section>
+
+  <!-- OB 4: LEVEL -->
+  <section class="screen" id="s-level">
+    <div class="obtop"><div class="backb" data-go="s-role">←</div><div class="progress"><i style="width:66%"></i></div><div class="obstep">4/6</div></div>
+    <div class="obhead"><h2>Where are you today?</h2><p>We'll set the starting depth for your path.</p></div>
+    <div class="scroll">
+      <div class="segwrap" data-single data-field="level" style="padding-top:18px">
+        <div class="seg" aria-checked="true" data-val="Just starting"><div class="big">🌱</div><div><div class="t">Just starting</div><div class="d">New to this, want the fundamentals</div></div><div class="ck">✓</div></div>
+        <div class="seg" data-val="Some experience"><div class="big">📈</div><div><div class="t">Some experience</div><div class="d">I know the basics, want to sharpen</div></div><div class="ck">✓</div></div>
+        <div class="seg" data-val="Advanced"><div class="big">⭐</div><div><div class="t">Advanced</div><div class="d">Give me the nuance and edge cases</div></div><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="footer"><button class="btn" data-go="s-time">Continue &nbsp;→</button></div>
+  </section>
+
+  <!-- OB 5: TIME -->
+  <section class="screen" id="s-time">
+    <div class="obtop"><div class="backb" data-go="s-level">←</div><div class="progress"><i style="width:83%"></i></div><div class="obstep">5/6</div></div>
+    <div class="obhead"><h2>How much time a day?</h2><p>Consistency beats length. Pick something you'll keep.</p></div>
+    <div class="scroll">
+      <div class="segwrap" data-single data-field="daily_minutes" style="padding-top:18px">
+        <div class="seg" data-val="5"><div class="big">5</div><div><div class="t">Quick — 5 min</div><div class="d">One insight a day</div></div><div class="ck">✓</div></div>
+        <div class="seg" aria-checked="true" data-val="10"><div class="big">10</div><div><div class="t">Steady — 10 min</div><div class="d">A lesson + a small action</div></div><div class="ck">✓</div></div>
+        <div class="seg" data-val="15"><div class="big">15</div><div><div class="t">Serious — 15 min</div><div class="d">Lesson, action, and review</div></div><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="footer"><button class="btn" data-go="s-format">Continue &nbsp;→</button></div>
+  </section>
+
+  <!-- OB 6: FORMAT -->
+  <section class="screen" id="s-format">
+    <div class="obtop"><div class="backb" data-go="s-time">←</div><div class="progress"><i style="width:100%"></i></div><div class="obstep">6/6</div></div>
+    <div class="obhead"><h2>How do you like to learn?</h2><p>Every lesson comes as cards you can read or listen to.</p></div>
+    <div class="scroll">
+      <div class="choices two" data-single data-field="format">
+        <div class="choice two-up" data-val="read"><div class="ic">📖</div><div class="t">Read</div><div class="d" style="margin:0">Swipe through text cards</div><div class="ck">✓</div></div>
+        <div class="choice two-up" data-val="listen"><div class="ic">🎧</div><div class="t">Listen</div><div class="d" style="margin:0">Audio for commutes & the gym</div><div class="ck">✓</div></div>
+        <div class="choice two-up" aria-checked="true" data-val="both" style="grid-column:1/-1"><div class="ic">🔀</div><div class="t">Both — my choice each time</div><div class="d" style="margin:0">Read some days, listen others</div><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="footer"><button class="btn" id="finishOnboarding">Save & continue &nbsp;→</button></div>
+  </section>
+
+  <!-- EMAIL -->
+  <section class="screen" id="s-email">
+    <div class="obtop"><div class="backb" data-go="s-format">←</div><div class="progress"><i style="width:100%"></i></div><div class="obstep"></div></div>
+    <div class="authwrap">
+      <div class="logomark" style="margin-bottom:18px">C</div>
+      <h2>Save your progress</h2>
+      <p>Enter your email and we'll send a 6-digit code. No password to remember.</p>
+      <input class="field" id="emailInput" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com">
+      <div class="err" id="emailErr"></div>
+      <button class="btn" id="sendCodeBtn" style="margin-top:8px">Send my code</button>
+    </div>
+  </section>
+
+  <!-- CODE -->
+  <section class="screen" id="s-code">
+    <div class="obtop"><div class="backb" data-go="s-email">←</div><div class="progress"><i style="width:100%"></i></div><div class="obstep"></div></div>
+    <div class="authwrap">
+      <div class="logomark" style="margin-bottom:18px">C</div>
+      <h2>Enter your code</h2>
+      <p>We sent a 6-digit code to <b id="codeEmail"></b>. It expires in 10 minutes.</p>
+      <input class="field codeinput" id="codeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <div class="err" id="codeErr"></div>
+      <button class="btn" id="verifyBtn" style="margin-top:8px">Verify & continue</button>
+      <button class="linkbtn" id="resendBtn" style="align-self:center;margin-top:10px">Resend code</button>
+    </div>
+  </section>
+
+  <!-- BUILDING -->
+  <section class="screen" id="s-building">
+    <div class="wrap">
+      <div class="spinner"></div>
+      <h2>Building your path…</h2>
+      <div class="buildlog" id="buildlog">
+        <div class="row"><span class="b">✓</span> Reading your goals</div>
+        <div class="row"><span class="b">✓</span> Matching the right books</div>
+        <div class="row"><span class="b">✓</span> Sequencing your lessons</div>
+        <div class="row"><span class="b">✓</span> Writing your first mission</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DYNAMIC SCREENS (rendered by app.js) -->
+  <section class="screen" id="s-home"></section>
+  <section class="screen" id="s-path"></section>
+  <section class="screen" id="s-reader"></section>
+  <section class="screen" id="s-quiz"></section>
+  <section class="screen" id="s-apply"></section>
+  <section class="screen" id="s-complete"></section>
+  <section class="screen" id="s-library"></section>
+  <section class="screen" id="s-book"></section>
+  <section class="screen" id="s-progress"></section>
+  <section class="screen" id="s-coach"></section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

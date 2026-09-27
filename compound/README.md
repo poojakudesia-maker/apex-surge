@@ -1,0 +1,136 @@
+# Compound — PWA + PHP/MySQL
+
+A working installable PWA for learning the best productivity/communication books in ~10 min a day:
+selection-based onboarding (no password), skill paths, read/listen insight cards, an instantly-graded
+quiz after each lesson, a 2-day field assignment with photo/audio proof, progress + streaks, and a live
+AI coach powered by the Claude API. Plus an admin panel to manage content and review submissions.
+
+This is the **first vertical slice**: one complete path (Communicate with Impact) working end to end.
+
+---
+
+## What's in the box
+
+```
+compound/
+├─ sql/
+│  ├─ schema.sql        ← run first (creates tables)
+│  └─ seed.sql          ← run second (loads the Communication path + 6 books)
+├─ public/              ← upload the CONTENTS of this folder to public_html
+│  ├─ index.html        ← the PWA
+│  ├─ manifest.webmanifest, sw.js
+│  ├─ assets/ (css, js, icons)
+│  ├─ admin/            ← content admin at  yourdomain.com/admin
+│  └─ api/              ← PHP REST API (yourdomain.com/api)
+│     ├─ config.php     ← EDIT THIS (DB creds, Claude key, admin email)
+│     ├─ config.sample.php
+│     ├─ index.php, db.php, helpers.php, claude.php
+│     ├─ routes/*.php
+│     └─ uploads/       ← assignment photos/audio are stored here (private)
+└─ README.md
+```
+
+## Requirements (Hostinger)
+
+- A domain/subdomain on your Hostinger plan
+- PHP 8.0+ (set in hPanel → Advanced → PHP Configuration; enable `curl`, `pdo_mysql`, `fileinfo`)
+- One MySQL database
+- SSL (free with Hostinger) — needed for PWA install, camera and microphone
+- A Claude API key from console.anthropic.com (for the AI coach)
+
+---
+
+## Deploy in 8 steps
+
+### 1. Create the database
+hPanel → **Databases → MySQL Databases**. Create a database and a user, give the user all
+privileges. Note the **database name, user, password** (host is usually `localhost`).
+
+### 2. Import the schema and seed
+hPanel → **phpMyAdmin** → open your database →
+- **Import** tab → choose `sql/schema.sql` → Go
+- **Import** tab → choose `sql/seed.sql` → Go
+
+You now have the Communication path, 6 lessons, quizzes, assignments, and a 6-book library.
+
+### 3. Upload the app
+Upload the **contents of `public/`** into `public_html` (File Manager or FTP). You should end up with
+`public_html/index.html`, `public_html/api/`, `public_html/admin/`, etc.
+(If you host on a subdomain, upload into that subdomain's folder instead.)
+
+### 4. Configure the API
+Edit `public_html/api/config.php` and fill in:
+- `db` → your database name / user / password
+- `claude.api_key` → your Claude API key; set `claude.model` to a model your key can use
+  (e.g. `claude-sonnet-4-5`, or a Haiku model for lower cost)
+- `mail.from` → a real mailbox on your domain (create one in hPanel → Emails)
+- `admin_emails` → your email (this is who can open `/admin`)
+- `app_url` → `https://yourdomain.com`
+- Leave `dev_echo_code` as `true` for your first test, then set it to **`false`** for launch.
+
+### 5. Permissions
+Make sure `public_html/api/uploads/` is writable (chmod `755`, or `775` if uploads fail).
+The included `.htaccess` files keep uploads private and route the API — leave them in place.
+
+### 6. Test the API
+Visit `https://yourdomain.com/api/ping` — you should see `{"ok":true,...}`.
+If you get a database error, re-check step 4.
+
+### 7. Use the app
+Open `https://yourdomain.com`. Go through onboarding → enter your email.
+- With `dev_echo_code: true`, the 6-digit code is shown in the app (and returned by the API) so you can
+  log in even before email delivery is set up.
+- Add to Home Screen (iOS Safari: Share → Add to Home Screen; Android Chrome: Install app) to run it as a PWA.
+
+### 8. Open the admin
+Go to `https://yourdomain.com/admin`, sign in with an email listed in `admin_emails`.
+Manage books, lessons, insight cards, quiz questions, and assignments, and review learner submissions
+(photos/audio play inline).
+
+---
+
+## Email (login codes)
+
+The app sends the 6-digit code with PHP `mail()`, using `mail.from`. On shared hosting this works only if
+the *from* address is a real mailbox on your domain. If codes don't arrive:
+- **Quick path:** keep `dev_echo_code: true` while you test (code appears in-app).
+- **Reliable path:** send via SMTP. Create an email account in hPanel, then either install PHPMailer and
+  swap the `send_login_email()` body in `api/routes/auth.php`, or use Hostinger's SMTP details. Ask me and
+  I'll wire PHPMailer in for you.
+
+Set `dev_echo_code: false` before you share the app publicly.
+
+---
+
+## How it works (quick map)
+
+- **Auth:** `POST /api/auth/request-code` → emails a code; `POST /api/auth/verify-code` → returns a bearer
+  token (stored in the browser). All other calls send `Authorization: Bearer <token>`.
+- **Content:** paths → lessons → cards / quiz_questions+options / assignment. Served read-only to learners,
+  editable in `/admin`.
+- **Quiz:** each answer is graded server-side instantly (`POST /api/quiz/answer`), final score saved on submit.
+- **Assignment:** `POST /api/assignments/{lesson}/submit` (multipart) stores photo/audio in `api/uploads/`,
+  due 2 days out; files are served back only to the owner or an admin via `GET /api/uploads/{id}`.
+- **Coach:** `POST /api/coach` calls the Claude Messages API with the learner's profile as context.
+- **Progress:** streak, growth score, weekly activity and Playbook.
+
+---
+
+## Security notes
+
+- `config.php` is blocked from the web by `api/.htaccess`.
+- Uploads can't be executed or listed directly; they're only reachable through the authenticated endpoint.
+- Login codes are hashed, expire in 10 minutes, and are rate-limited.
+- Turn on the HTTPS redirect (commented block at the bottom of `public/.htaccess`) once SSL is active.
+
+---
+
+## What's next (later sessions)
+
+- More paths (Productivity, Interview Prep, Leadership) — the structure already supports them; just add a
+  `paths` row with a matching `goal` and its lessons in the admin.
+- AI-generated summaries on demand (the Claude client is already here).
+- Email reminders when an assignment is due (a cron job hitting a small PHP script).
+- Push notifications for streaks.
+
+Tell me which to build next and I'll extend this same codebase.

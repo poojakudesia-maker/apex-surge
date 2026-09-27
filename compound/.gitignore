@@ -1,0 +1,5 @@
+public/api/config.php
+public/api/uploads/*
+!public/api/uploads/.htaccess
+!public/api/uploads/.gitkeep
+.DS_Store

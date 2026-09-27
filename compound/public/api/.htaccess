@@ -1,0 +1,23 @@
+# Route every /api/* request through index.php as ?route=...
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /api/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
+</IfModule>
+
+# Make sure the Authorization header reaches PHP (some CGI/FastCGI setups strip it)
+<IfModule mod_rewrite.c>
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+# Never serve config.php as text
+<Files "config.php">
+  Require all denied
+</Files>
+<Files "config.sample.php">
+  Require all denied
+</Files>
