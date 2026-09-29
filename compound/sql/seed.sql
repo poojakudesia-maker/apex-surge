@@ -2,14 +2,14 @@
 -- Safe to re-run: clears content tables first (does NOT touch users/progress).
 SET NAMES utf8mb4;
 SET foreign_key_checks = 0;
-TRUNCATE TABLE quiz_options;
-TRUNCATE TABLE quiz_questions;
-TRUNCATE TABLE cards;
-TRUNCATE TABLE assignments;
-TRUNCATE TABLE lessons;
-TRUNCATE TABLE paths;
-TRUNCATE TABLE book_insights;
-TRUNCATE TABLE books;
+DELETE FROM quiz_options;
+DELETE FROM quiz_questions;
+DELETE FROM cards;
+DELETE FROM assignments;
+DELETE FROM lessons;
+DELETE FROM paths;
+DELETE FROM book_insights;
+DELETE FROM books;
 SET foreign_key_checks = 1;
 
 -- ---------- Books ----------
