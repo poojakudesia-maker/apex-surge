@@ -35,6 +35,7 @@ function api(path, opts) {
 var histStack = [];
 function show(id, opts) {
   opts = opts || {};
+  if (typeof audio !== 'undefined' && audio.playing) stopAudio(); // leaving the screen stops narration
   document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
   if (!opts.replace) { if (histStack[histStack.length - 1] !== id) histStack.push(id); }
   var sc = $('#' + id + ' .scroll'); if (sc) sc.scrollTop = 0;
@@ -74,6 +75,11 @@ function collectOnboarding() {
 }
 
 /* ---------- boot ---------- */
+function sessionExpired() {
+  state.token = null; localStorage.removeItem(TOKEN_KEY);
+  toast('Your session expired. Please sign in again.');
+  show('s-email', { replace: true });
+}
 function boot() {
   if (!state.token) { show('s-welcome', { replace: true }); return; }
   api('auth/me').then(function (d) {
@@ -297,7 +303,7 @@ function renderReader() {
     '<div class="audiobar"><button class="playbtn" id="playbtn" onclick="App.togglePlay()">▶</button>' +
       '<div class="wave"><div class="track2"><b id="audiofill"></b></div>' +
       '<div class="time"><span id="tcur">0:00</span><span id="tdur">audio</span></div></div>' +
-      '<div class="spd" id="spd" onclick="App.cycleSpeed()">1×</div></div>' +
+      '<div class="spd" id="spd" onclick="App.cycleSpeed()">' + audio.rate + '×</div></div>' +
     '<div class="rdrnav"><button class="btn ghost" style="flex:0 0 54px" onclick="App.readerPrev()">←</button>' +
       '<button class="btn" id="rdrnext" onclick="App.readerNext()">Next insight</button></div>';
   var cardsEl = el('cards');
@@ -320,8 +326,8 @@ function readerNext() {
 function readerPrev() { var r = state.reader; if (r.idx > 0) { stopAudio(); r.idx--; scrollReader(); } }
 function scrollReader() { var c = el('cards'); c.scrollTo({ left: state.reader.idx * c.clientWidth, behavior: 'smooth' }); updateReaderProg(); }
 
-/* audio via Web Speech API, with simulated fallback */
-var audio = { playing: false, timer: null, pct: 0, rate: 1, rates: [1, 1.25, 1.5, 2], ri: 0, synth: window.speechSynthesis, voice: null };
+/* audio: device text-to-speech (Web Speech API) */
+var audio = { playing: false, rate: 1, rates: [1, 1.25, 1.5, 2], ri: 0, synth: window.speechSynthesis, voice: null };
 
 /* Narrator: a calm, clear female voice with an Indian English accent.
    Voices come from the device, so we rank what's installed:
@@ -359,51 +365,71 @@ function splitSentences(text) {
 function currentCardText() { var c = state.reader.lesson.cards[state.reader.idx]; return [c.heading, c.quote, c.body, c.callout_body].filter(Boolean)
     .map(function (x) { x = String(x).trim(); return /[.!?\u2026"'\u201d\u2019]$/.test(x) ? x : x + '.'; }).join(' '); }
 function togglePlay() { audio.playing ? stopAudio() : startAudio(); }
-function startAudio() {
-  audio.playing = true; var pb = el('playbtn'); if (pb) pb.textContent = '❚❚';
-  var text = currentCardText();
-  if (audio.synth && 'SpeechSynthesisUtterance' in window) {
-    audio.synth.cancel();
-    if (!audio.voice) audio.voice = pickVoice();
-    // one utterance per sentence: natural pauses, and avoids Chrome cutting off long utterances
-    var parts = splitSentences(text);
-    parts.forEach(function (p, i) {
-      var u = new SpeechSynthesisUtterance(p);
-      if (audio.voice) { u.voice = audio.voice; u.lang = audio.voice.lang; } else u.lang = 'en-IN';
-      u.rate = VOICE_BASE_RATE * audio.rate; u.pitch = VOICE_PITCH; u.volume = 1;
-      if (i === parts.length - 1) u.onend = function () { if (audio.playing) stopAudio(); };
-      audio.synth.speak(u);
-    });
+function fmtTime(sec) { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2); }
+function ttsSupported() { return !!(audio.synth && 'SpeechSynthesisUtterance' in window); }
+
+/* Speak text sentence by sentence. Progress follows the sentence actually being spoken. */
+function narrate(text, ui) {
+  audio.synth.cancel();
+  if (!audio.voice) audio.voice = pickVoice();
+  var parts = splitSentences(text);
+  var words = parts.map(function (p) { return p.split(/\s+/).length; });
+  var total = words.reduce(function (x, y) { return x + y; }, 0) || 1;
+  var dur = Math.max(3, total / (2.6 * VOICE_BASE_RATE * audio.rate)); // estimate for the time label
+  var done = 0, session = (audio.session = (audio.session || 0) + 1);
+  function progress(pct) {
+    var f = el(ui.fill); if (f) f.style.width = pct + '%';
+    var tc = el(ui.cur); if (tc) tc.textContent = fmtTime(dur * pct / 100);
   }
-  var words = text.split(/\s+/).length; var dur = Math.max(4, words / (2.6 * VOICE_BASE_RATE * audio.rate));
-  var mm = Math.floor(dur / 60), ss = ('0' + Math.floor(dur % 60)).slice(-2);
-  var td = el('tdur'); if (td) td.textContent = mm + ':' + ss;
-  audio.pct = 0; var step = 100 / (dur * 10);
-  clearInterval(audio.timer);
-  audio.timer = setInterval(function () {
-    audio.pct += step; if (audio.pct >= 100) { audio.pct = 100; stopAudio(); }
-    var f = el('audiofill'); if (f) f.style.width = audio.pct + '%';
-    var cur = Math.floor(dur * audio.pct / 100); var tc = el('tcur');
-    if (tc) tc.textContent = Math.floor(cur / 60) + ':' + ('0' + (cur % 60)).slice(-2);
-  }, 100);
+  var td = el(ui.dur); if (td) td.textContent = fmtTime(dur);
+  progress(0);
+  parts.forEach(function (p, i) {
+    var u = new SpeechSynthesisUtterance(p);
+    if (audio.voice) { u.voice = audio.voice; u.lang = audio.voice.lang; } else u.lang = 'en-IN';
+    u.rate = VOICE_BASE_RATE * audio.rate; u.pitch = VOICE_PITCH; u.volume = 1;
+    u.onend = function () {
+      if (session !== audio.session) return;
+      done += words[i]; progress(done / total * 100);
+      if (i === parts.length - 1) stopAudio();
+    };
+    u.onerror = function (e) {
+      if (session !== audio.session || e.error === 'interrupted' || e.error === 'canceled') return;
+      stopAudio(); toast('Audio stopped. Tap play to try again.');
+    };
+    audio.synth.speak(u);
+  });
+}
+function setPlayIcon(on) { ['playbtn', 'bookplay'].forEach(function (id) { var b = el(id); if (b) b.textContent = on ? '\u275A\u275A' : '\u25B6'; }); }
+function startAudio(text, ui) {
+  if (!ttsSupported()) { toast('Listening isn\u2019t supported in this browser. Try Chrome, Edge or Safari.'); return; }
+  audio.text = text || currentCardText();
+  audio.ui = ui || { fill: 'audiofill', cur: 'tcur', dur: 'tdur' };
+  audio.playing = true; setPlayIcon(true);
+  narrate(audio.text, audio.ui);
 }
 function stopAudio() {
-  audio.playing = false; var pb = el('playbtn'); if (pb) pb.textContent = '▶';
-  clearInterval(audio.timer); if (audio.synth) audio.synth.cancel();
+  audio.playing = false; audio.session = (audio.session || 0) + 1; setPlayIcon(false);
+  if (audio.synth) audio.synth.cancel();
 }
 function cycleSpeed() { audio.ri = (audio.ri + 1) % audio.rates.length; audio.rate = audio.rates[audio.ri];
-  var s = el('spd'); if (s) s.textContent = audio.rate + '×'; if (audio.playing) { stopAudio(); startAudio(); } }
+  document.querySelectorAll('.spd').forEach(function (s) { s.textContent = audio.rate + '\u00D7'; });
+  if (audio.playing) { var t = audio.text, u = audio.ui; stopAudio(); startAudio(t, u); } }
 
 /* ---------- QUIZ ---------- */
 function openQuiz(lessonId) {
   api('quiz/' + lessonId).then(function (d) {
-    state.quiz = { lessonId: lessonId, questions: d.questions, idx: 0, score: 0, answers: {}, answered: false };
+    var qs = (d.questions || []).filter(function (q) { return q.options && q.options.length; });
+    if (!qs.length) { openApply(lessonId); return; } // lesson has no quiz yet: go straight to the assignment
+    state.quiz = { lessonId: lessonId, questions: qs, idx: 0, score: 0, answers: {}, answered: false };
     el('s-quiz').innerHTML =
       '<div class="rdrtop"><div class="x" onclick="App.tab(\'home\')">✕</div><div class="rdrprog" id="quizprog"></div></div>' +
       '<div class="scroll"><div class="qwrap" id="quizbody"></div></div>' +
       '<div class="footer"><button class="btn" id="quiznext" disabled onclick="App.quizNext()">Choose an answer</button></div>';
     renderQuiz(); show('s-quiz');
-  }).catch(function () { toast('Could not load quiz.'); });
+  }).catch(function (e) {
+    if (e && e.status === 401) { sessionExpired(); return; }
+    toast(e && e.status ? 'Could not load the quiz. Please try again.' : 'You\u2019re offline. Reconnect to take the quiz.');
+  });
 }
 function renderQuiz() {
   var q = state.quiz; q.answered = false;
@@ -560,20 +586,34 @@ function renderComplete(assignState) {
 }
 
 /* ---------- LIBRARY ---------- */
-var libCat = 'All';
+var libCat = 'All', libBooks = [], libQuery = '';
 function loadLibrary() {
   return api('library' + (libCat !== 'All' ? '?category=' + encodeURIComponent(libCat) : '')).then(function (d) {
+    libBooks = d.books || [];
     var chips = (d.categories || ['All']).map(function (c) {
-      return '<div class="gchip ' + (c === libCat ? 'on' : '') + '" onclick="App.setCat(\'' + esc(c).replace(/'/g, '') + '\')">' + esc(c) + '</div>'; }).join('');
-    var grid = (d.books || []).map(function (b) {
-      return '<div class="libcard" onclick="App.openBook(' + b.id + ')"><div class="bookcover ' + esc(b.cover_class) + '">' +
-        '<div class="k">' + esc(b.category) + '</div><div><div class="ttl">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div></div></div></div>'; }).join('');
+      return '<button class="gchip ' + (c === libCat ? 'on' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '</button>'; }).join('');
     el('s-library').innerHTML =
       '<div class="apphead"><div style="flex:1"><div class="eyebrow">Explore</div><h1>Library</h1></div></div>' +
-      '<div class="searchbar">⚲ &nbsp;Search books, skills, authors…</div>' +
-      '<div class="goalchips" style="padding-top:8px">' + chips + '</div>' +
-      '<div class="scroll"><div class="libgrid">' + grid + '</div></div>' + tabbar('library');
-  }).catch(function () { el('s-library').innerHTML = '<div class="loading">Could not load library.</div>' + tabbar('library'); });
+      '<label class="searchbar">\u26B2 <input id="libSearch" type="search" placeholder="Search books, authors, topics\u2026" autocomplete="off" value="' + esc(libQuery) + '"></label>' +
+      '<div class="goalchips" id="libCats" style="padding-top:8px">' + chips + '</div>' +
+      '<div class="scroll"><div class="libgrid" id="libGrid"></div></div>' + tabbar('library');
+    el('libSearch').addEventListener('input', function () { libQuery = this.value; renderLibGrid(); });
+    el('libCats').addEventListener('click', function (e) { var c = e.target.closest('[data-cat]'); if (c) setCat(c.dataset.cat); });
+    renderLibGrid();
+  }).catch(function (e) {
+    if (e && e.status === 401) return sessionExpired();
+    el('s-library').innerHTML = '<div class="loading">Could not load the library. Check your connection and try again.</div>' + tabbar('library');
+  });
+}
+function renderLibGrid() {
+  var q = libQuery.trim().toLowerCase();
+  var list = libBooks.filter(function (b) {
+    return !q || [b.title, b.author, b.category, b.blurb].join(' ').toLowerCase().indexOf(q) !== -1; });
+  el('libGrid').innerHTML = list.length ? list.map(function (b) {
+    return '<div class="libcard" onclick="App.openBook(' + b.id + ')"><div class="bookcover ' + esc(b.cover_class) + '">' +
+      '<div class="k">' + esc(b.category) + '</div><div><div class="ttl">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div></div></div>' +
+      (b.blurb ? '<div class="libblurb">' + esc(b.blurb) + '</div>' : '') + '</div>'; }).join('')
+    : '<div class="loading" style="grid-column:1/-1">No books match \u201c' + esc(libQuery) + '\u201d.</div>';
 }
 function setCat(c) { libCat = c; loadLibrary().then(function () { show('s-library', { replace: true }); }); }
 
@@ -581,20 +621,37 @@ function setCat(c) { libCat = c; loadLibrary().then(function () { show('s-librar
 function openBook(id) {
   api('books/' + id).then(function (d) {
     var b = d.book;
+    var paras = String(b.summary || '').split(/\n\s*\n/).map(function (p) { return p.trim(); }).filter(Boolean);
     var insights = (b.insights || []).map(function (x, i) {
       return '<div class="keyrow"><div class="n">' + (i + 1) + '</div><div class="t">' + esc(x.text) + '</div></div>'; }).join('');
+    var listenText = [b.title + ', by ' + b.author + '.'].concat(paras.length ? paras : [b.blurb || '']).join(' ');
+    state.bookListen = listenText;
+    var secs = listenText.split(/\s+/).length / (2.6 * VOICE_BASE_RATE), mins = Math.max(1, Math.ceil(secs / 60));
     el('s-book').innerHTML =
-      '<div class="obtop" style="padding-bottom:0"><div class="backb" onclick="App.back()">←</div><div style="flex:1"></div></div>' +
+      '<div class="obtop" style="padding-bottom:0"><div class="backb" onclick="App.back()">\u2190</div><div style="flex:1"></div></div>' +
       '<div class="scroll"><div class="bd-hero"><div class="bookcover ' + esc(b.cover_class) + '" style="flex-direction:column">' +
         '<div class="k">' + esc(b.category) + '</div><div><div class="ttl">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div></div></div>' +
         '<div style="flex:1"><div class="t">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div>' +
-        '<div class="chips"><span class="tag">🎧 ' + b.minutes + ' min</span><span class="tag grow">' + b.insight_count + ' insights</span></div></div></div>' +
+        '<div class="chips"><span class="tag">\uD83C\uDFA7 ' + mins + ' min listen</span><span class="tag grow">' + b.insight_count + ' insights</span></div></div></div>' +
       '<div class="pad" style="padding-top:14px">' +
-        (b.blurb ? '<p class="muted" style="font-size:14px;line-height:1.55;margin:0 0 4px">' + esc(b.blurb) + '</p>' : '') +
-        '<h2 class="sec" style="margin-bottom:6px">Key insights</h2>' + insights + '</div></div>' +
-      '<div class="footer"><button class="btn" onclick="App.openPath()">Explore in your path →</button></div>';
+        (b.blurb ? '<p class="bookblurb">' + esc(b.blurb) + '</p>' : '') +
+        '<div class="audiobar"><button class="playbtn" id="bookplay" onclick="App.toggleBookAudio()">\u25B6</button>' +
+          '<div class="wave"><div class="track2"><b id="bookfill"></b></div>' +
+          '<div class="time"><span id="bookcur">0:00</span><span id="bookdur">' + fmtTime(secs) + '</span></div></div>' +
+          '<div class="spd" onclick="App.cycleSpeed()">' + audio.rate + '\u00D7</div></div>' +
+        (paras.length ? '<h2 class="sec" style="margin-bottom:6px">Summary</h2><div class="booksummary">' +
+          paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '</div>' : '') +
+        (insights ? '<h2 class="sec" style="margin-bottom:6px">Key insights</h2>' + insights : '') + '</div></div>' +
+      '<div class="footer"><button class="btn" onclick="App.openPath()">Explore in your path \u2192</button></div>';
     show('s-book');
-  }).catch(function () { toast('Could not load book.'); });
+  }).catch(function (e) {
+    if (e && e.status === 401) return sessionExpired();
+    toast(e && e.status ? 'Could not load this book.' : 'You\u2019re offline. Reconnect to open this book.');
+  });
+}
+function toggleBookAudio() {
+  if (audio.playing) { stopAudio(); return; }
+  startAudio(state.bookListen, { fill: 'bookfill', cur: 'bookcur', dur: 'bookdur' });
 }
 
 /* ---------- PROGRESS ---------- */
@@ -674,7 +731,7 @@ function resetCoach() { api('coach/reset', { method: 'POST', body: {} }).finally
 /* ---------- expose ---------- */
 window.App = {
   tab: tab, back: back, openPath: openPath, openLesson: openLesson,
-  readerNext: readerNext, readerPrev: readerPrev, togglePlay: togglePlay, cycleSpeed: cycleSpeed,
+  readerNext: readerNext, readerPrev: readerPrev, togglePlay: togglePlay, cycleSpeed: cycleSpeed, toggleBookAudio: toggleBookAudio,
   quizAnswer: quizAnswer, quizNext: quizNext,
   pickPhoto: pickPhoto, toggleRecord: toggleRecord, removeProof: removeProof,
   submitAssignment: submitAssignment, remindLater: remindLater,

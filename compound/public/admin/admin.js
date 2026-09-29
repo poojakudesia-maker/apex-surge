@@ -137,12 +137,12 @@ function bookForm(b) {
     field('Title', 'f_title', b.title) + field('Author', 'f_author', b.author) +
     field('Slug (url id)', 'f_slug', b.slug) + field('Category', 'f_category', b.category || 'Communication') +
     '<label>Cover style</label><select id="f_cover">' + covers.map(function (c) { return '<option' + (b.cover_class === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
-    area('Blurb', 'f_blurb', b.blurb) + field('Minutes', 'f_minutes', b.minutes || 9, 'number') + field('Sort order', 'f_sort', b.sort || 0, 'number') +
+    area('Blurb (one or two lines)', 'f_blurb', b.blurb) + area('Summary (separate paragraphs with a blank line)', 'f_summary', b.summary) + field('Minutes', 'f_minutes', b.minutes || 9, 'number') + field('Sort order', 'f_sort', b.sort || 0, 'number') +
     formButtons());
   bindSave(function () {
     return api('admin/books', { method: 'POST', body: {
       id: b.id, title: val('f_title'), author: val('f_author'), slug: val('f_slug') || slugify(val('f_title')),
-      category: val('f_category'), cover_class: val('f_cover'), blurb: val('f_blurb'),
+      category: val('f_category'), cover_class: val('f_cover'), blurb: val('f_blurb'), summary: val('f_summary'),
       minutes: parseInt(val('f_minutes') || 9, 10), sort: parseInt(val('f_sort') || 0, 10) } });
   }, secBooks);
 }

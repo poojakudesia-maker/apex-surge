@@ -85,7 +85,7 @@ function admin_books($method, $id, $seg) {
       json_out(['ok' => true, 'id' => (int)db()->lastInsertId()]);
     }
   }
-  return admin_crud('books', $method, $id, ['slug','title','author','category','cover_class','blurb','minutes','sort']);
+  return admin_crud('books', $method, $id, ['slug','title','author','category','cover_class','blurb','summary','minutes','sort']);
 }
 
 function admin_questions($method, $id, $seg) {

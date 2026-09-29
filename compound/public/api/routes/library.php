@@ -5,11 +5,11 @@ function route_library($method, $seg) {
   require_user();
   $cat = $_GET['category'] ?? null;
   if ($cat && $cat !== 'All') {
-    $s = db()->prepare('SELECT id, slug, title, author, category, cover_class, minutes FROM books WHERE category = ? ORDER BY sort, id');
+    $s = db()->prepare('SELECT id, slug, title, author, category, cover_class, blurb, minutes FROM books WHERE category = ? ORDER BY sort, id');
     $s->execute([$cat]);
     $books = $s->fetchAll();
   } else {
-    $books = db()->query('SELECT id, slug, title, author, category, cover_class, minutes FROM books ORDER BY sort, id')->fetchAll();
+    $books = db()->query('SELECT id, slug, title, author, category, cover_class, blurb, minutes FROM books ORDER BY sort, id')->fetchAll();
   }
   $cats = db()->query('SELECT DISTINCT category FROM books ORDER BY category')->fetchAll(PDO::FETCH_COLUMN);
   json_out(['books' => $books, 'categories' => array_merge(['All'], $cats)]);

@@ -31,7 +31,8 @@ function body_json() {
 }
 
 function bearer_token() {
-  $h = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+  // after a mod_rewrite pass Apache/LiteSpeed expose it as REDIRECT_HTTP_AUTHORIZATION
+  $h = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
   if (!$h && function_exists('apache_request_headers')) {
     $hh = apache_request_headers();
     $h = $hh['Authorization'] ?? ($hh['authorization'] ?? '');

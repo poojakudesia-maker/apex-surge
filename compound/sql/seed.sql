@@ -21,6 +21,42 @@ INSERT INTO books (id, slug, title, author, category, cover_class, blurb, minute
 (5,'atomic-habits','Atomic Habits','James Clear','Habits','cov4','Tiny changes, remarkable results. Build good habits and break bad ones with systems, not willpower.',10,5),
 (6,'radical-candor','Radical Candor','Kim Scott','Leadership','cov6','Care personally and challenge directly. How to give feedback that helps people grow without being a jerk.',9,6);
 
+-- ---------- Book summaries ----------
+UPDATE books SET summary = 'Chris Voss spent two decades as an FBI hostage negotiator, and his central claim is that negotiation runs on emotion, not logic. People decide based on how they feel, then justify it afterwards. So the goal isn''t to win the argument; it''s to make the other side feel understood first. Voss calls this tactical empathy.
+
+His tools are simple enough to use in your next conversation. Mirroring means repeating the last few words someone said, which invites them to keep talking and reveal more. Labelling means naming the emotion you sense out loud ("It seems like you''re worried about the timeline"), which calms fear and builds trust. He also argues that "no" is a safe word: people relax once they''ve been allowed to say it, so ask questions that make "no" the easy answer.
+
+Instead of making demands, use calibrated questions that start with "how" or "what", such as "How am I supposed to do that?" They hand the problem to the other person and make them work on your behalf. Be wary of a quick "yes", which is often just a way to end the conversation. You''re aiming for "that''s right", the moment someone feels truly heard.' WHERE id = 1;
+UPDATE books SET summary = 'A crucial conversation is one where the stakes are high, opinions differ and emotions run strong. Think of a pay discussion, feedback to a colleague or a disagreement with your partner. The authors argue that these are exactly the moments when most of us handle things worst, either going silent or getting aggressive.
+
+The fix starts with you. Before speaking, ask what you really want for yourself, for the other person and for the relationship. Then watch for signs that safety is breaking down. People stop sharing when they feel disrespected or believe you don''t care about their goals. When that happens, step out of the content, restore safety by apologising or clarifying your intent, and then return to the topic.
+
+Much of our anger comes from stories we tell ourselves about why someone acted the way they did. Separate the facts from your story, and stay curious. To speak up without triggering defensiveness, use STATE: share your facts, tell your story, ask for theirs, talk tentatively and encourage testing. Finally, end with clear decisions: who does what, and by when.' WHERE id = 2;
+UPDATE books SET summary = 'Chip and Dan Heath set out to explain why some ideas stick, like urban legends and proverbs, while important messages from teachers, managers and doctors are forgotten within minutes. They found six traits that sticky ideas share, which spell SUCCESs.
+
+Simple means finding the core of your message and saying it in a way that''s both short and deep. Unexpected means breaking a pattern to win attention and then opening a curiosity gap to hold it. Concrete means using things people can see and touch rather than abstractions: "a man on the moon" beats "leadership in space technology". Credible means letting people test the idea for themselves, or using a telling detail instead of a pile of statistics. Emotional means making people care about one person instead of a crowd of numbers. Stories give people a mental rehearsal of how to act.
+
+The villain of the book is the Curse of Knowledge. Once you know something, it''s hard to imagine not knowing it, so experts speak in abstractions that make sense only to themselves. The cure is to translate your idea into concrete examples and stories your listener already understands.' WHERE id = 3;
+UPDATE books SET summary = 'Carmine Gallo analysed hundreds of the most popular TED talks to find what makes a presentation persuasive and memorable. His answer comes down to nine habits, grouped around three qualities: emotional, novel and memorable.
+
+Emotional talks start with passion. Speakers who talk about what they truly love are more engaging because enthusiasm is contagious. They tell stories, especially personal ones, since stories connect with people in a way that data can''t. And they have a conversation with the audience instead of performing at them, which takes a lot of practice to look natural.
+
+Novel talks teach the audience something new, or show familiar things in a fresh way. The best of them include one jaw-dropping moment people will remember and repeat later. Humour helps too, as long as it''s natural rather than forced jokes.
+
+Memorable talks respect attention spans. TED''s 18-minute limit forces speakers to cut to what matters, and Gallo recommends a rule of three: organise your message around three key points. Use vivid, multi-sensory elements such as pictures, demonstrations and props. Above all, stay authentic. People trust speakers who are open and honest.' WHERE id = 4;
+UPDATE books SET summary = 'James Clear''s core idea is that small habits compound. Getting 1% better each day adds up to a big change over a year, but the results show up late, so most people quit during the plateau. That''s why he argues for focusing on systems rather than goals. Winners and losers often share the same goals, but the process is what makes the difference.
+
+The deepest level of change is identity. Rather than "I want to run a marathon", think "I''m a runner", and let each small action be a vote for the person you want to become.
+
+Clear breaks every habit into four steps: cue, craving, response and reward. That gives four laws for building good habits. Make it obvious by designing your environment and using clear plans like "I will do X at time Y in place Z". Make it attractive by pairing it with something you enjoy. Make it easy by cutting friction and starting with a two-minute version. Make it satisfying with an immediate reward and a visible habit tracker. To break a bad habit, reverse the laws: make it invisible, unattractive, difficult and unsatisfying.' WHERE id = 5;
+UPDATE books SET summary = 'Kim Scott, who managed teams at Google and Apple, defines good leadership along two axes: caring personally and challenging directly. Radical Candor is doing both at the same time. You tell people the truth because you care about them.
+
+Most managers slip into one of three failure modes. Ruinous Empathy is caring without challenging. It feels kind, but it leaves people without the feedback they need to improve, and it''s the most common mistake. Obnoxious Aggression is challenging without caring, which is brutal honesty that damages trust. Manipulative Insincerity is neither: political, two-faced praise and criticism.
+
+Scott''s practical advice is to start by asking for criticism before you give any, and to reward it when you get it so people see it''s safe. When giving feedback, keep it humble, helpful, immediate and in person. Praise in public, criticise in private, and address the work rather than the person''s personality. Praise matters as much as criticism, but it has to be specific and sincere.
+
+She also distinguishes between "rock stars", who are steady and want stability, and "superstars", who are on a fast growth path. Both matter, and a good boss manages each differently.' WHERE id = 6;
+
 INSERT INTO book_insights (book_id, idx, text) VALUES
 (1,1,'Tactical empathy: understand the other side before you try to be understood'),
 (1,2,'Mirror the last few words to make people expand'),

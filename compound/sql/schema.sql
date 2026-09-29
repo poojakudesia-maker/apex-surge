@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS books (
   category    VARCHAR(60) NOT NULL DEFAULT 'Communication',
   cover_class VARCHAR(20) NOT NULL DEFAULT 'cov1',
   blurb       TEXT DEFAULT NULL,
+  summary     TEXT DEFAULT NULL,         -- full written summary; paragraphs separated by a blank line
   minutes     INT NOT NULL DEFAULT 9,
   sort        INT NOT NULL DEFAULT 0,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

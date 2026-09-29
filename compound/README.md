@@ -107,6 +107,19 @@ a new code invalidates the old one.
 
 ---
 
+## Upgrading an existing install
+
+If you already imported `schema.sql` before book summaries existed:
+
+1. phpMyAdmin → your database → **Import** → `sql/migrations/001_book_summaries.sql`
+   (adds the `books.summary` column; "Duplicate column name" means it's already there).
+2. Import `sql/seed.sql` again to load the summaries (untick "Enable foreign key checks" if learners
+   already have progress).
+3. Re-upload the contents of `public/`, keeping your existing `api/config.php`, and add the new
+   `mail.smtp` block from `config.sample.php` to it.
+
+---
+
 ## How it works (quick map)
 
 - **Auth:** `POST /api/auth/request-code` → emails a code; `POST /api/auth/verify-code` → returns a bearer
@@ -116,6 +129,8 @@ a new code invalidates the old one.
 - **Quiz:** each answer is graded server-side instantly (`POST /api/quiz/answer`), final score saved on submit.
 - **Assignment:** `POST /api/assignments/{lesson}/submit` (multipart) stores photo/audio in `api/uploads/`,
   due 2 days out; files are served back only to the owner or an admin via `GET /api/uploads/{id}`.
+- **Library:** `GET /api/library` lists books; `GET /api/books/{id}` returns the blurb, written summary and key
+  insights. The book page can read the summary aloud.
 - **Coach:** `POST /api/coach` calls the Claude Messages API with the learner's profile as context.
 - **Progress:** streak, growth score, weekly activity and Playbook.
 

@@ -48,10 +48,11 @@ function route_coach($method, $seg) {
 
     $res = claude_message($messages, $system, 700);
     if (!$res['ok']) {
+      error_log('[coach] Claude API error: ' . $res['error']);
       $hint = $res['error'] === 'claude_not_configured'
         ? 'The AI coach is not configured yet. Add your Claude API key in api/config.php.'
         : 'The coach could not respond right now. Please try again in a moment.';
-      json_out(['ok' => false, 'error' => $res['error'], 'reply' => $hint], 200);
+      json_out(['ok' => false, 'error' => $res['error'] === 'claude_not_configured' ? 'not_configured' : 'unavailable', 'reply' => $hint], 200);
     }
 
     db()->prepare('INSERT INTO coach_messages (user_id, role, content) VALUES (?,\'assistant\',?)')

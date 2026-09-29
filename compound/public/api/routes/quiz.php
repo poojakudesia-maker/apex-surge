@@ -45,7 +45,9 @@ function route_quiz($method, $seg) {
     $lid = (int)$seg[0];
     $b = body_json();
     $answers = is_array($b['answers'] ?? null) ? $b['answers'] : [];
-    $qs = db()->query('SELECT id FROM quiz_questions WHERE lesson_id = ' . $lid)->fetchAll(PDO::FETCH_COLUMN);
+    $st = db()->prepare('SELECT id FROM quiz_questions WHERE lesson_id = ?');
+    $st->execute([$lid]);
+    $qs = $st->fetchAll(PDO::FETCH_COLUMN);
     $total = count($qs);
     $score = 0;
     $correctStmt = db()->prepare('SELECT id FROM quiz_options WHERE question_id = ? AND is_correct = 1 LIMIT 1');
