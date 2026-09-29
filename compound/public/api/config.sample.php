@@ -22,12 +22,21 @@ return [
     'version'    => '2023-06-01',
   ],
 
-  // ---- Email (passwordless login codes) ----
-  // Default uses PHP mail(). For reliability on Hostinger, set up an email
-  // account and consider SMTP (see README). from = a real mailbox on your domain.
+  // ---- Email (sign-in codes are sent over SMTP) ----
+  // Hostinger: hPanel > Emails > create a mailbox (e.g. no-reply@yourdomain.com),
+  // then use that mailbox's address and password below. `from` must be the same
+  // mailbox (or an alias of it) or the message will be rejected / marked as spam.
   'mail' => [
     'from'      => 'no-reply@REPLACE_DOMAIN.com',
     'from_name' => 'Compound',
+    'smtp' => [
+      'host'    => 'smtp.hostinger.com',
+      'port'    => 465,                          // 465 = SSL, 587 = STARTTLS
+      'secure'  => 'ssl',                        // 'ssl' | 'tls' | 'none'
+      'user'    => 'no-reply@REPLACE_DOMAIN.com',
+      'pass'    => 'REPLACE_MAILBOX_PASSWORD',
+      'timeout' => 15,
+    ],
   ],
 
   // ---- App ----
@@ -36,5 +45,4 @@ return [
   'code_ttl_min'   => 10,     // login code lifetime
   'session_ttl_days' => 60,   // how long a login lasts
   'upload_max_mb'  => 15,     // per assignment file
-  'dev_echo_code'  => false,  // TRUE only while testing: returns the login code in the API response so you can log in without email working
 ];

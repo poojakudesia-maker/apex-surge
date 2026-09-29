@@ -1,5 +1,5 @@
 /* Compound service worker — app-shell cache, network-first for API. */
-var CACHE = 'compound-v1';
+var CACHE = 'compound-v2';
 var SHELL = [
   './',
   './index.html',

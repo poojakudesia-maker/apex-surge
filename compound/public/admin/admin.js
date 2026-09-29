@@ -43,15 +43,25 @@ function renderLogin(msg) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('aerr').textContent = 'Enter a valid email.'; return; }
     api('auth/request-code', { method: 'POST', body: { email: email } }).then(function (d) {
       S.pendingEmail = email; el('step1').style.display = 'none'; el('step2').style.display = 'block';
-      if (d.dev_code) el('acode').value = d.dev_code;
-    }).catch(function () { el('aerr').textContent = 'Could not send code.'; });
+      el('acode').focus();
+    }).catch(function (e) {
+      var err = e && e.data && e.data.error;
+      el('aerr').textContent = err === 'too_many_requests' ? 'Too many requests. Wait a minute and try again.'
+        : err === 'email_send_failed' ? 'Email could not be sent. Check the SMTP settings in config.php.'
+        : 'Could not send code.';
+    });
   };
   el('averify').onclick = function () {
     var code = (el('acode').value || '').replace(/\D/g, ''); el('aerr2').textContent = '';
     if (code.length !== 6) { el('aerr2').textContent = 'Enter the 6 digits.'; return; }
     api('auth/verify-code', { method: 'POST', body: { email: S.pendingEmail, code: code } }).then(function (d) {
       token = d.token; localStorage.setItem(TOKEN_KEY, token); boot();
-    }).catch(function () { el('aerr2').textContent = 'Wrong or expired code.'; });
+    }).catch(function (e) {
+      var d = (e && e.data) || {};
+      el('aerr2').textContent = d.error === 'wrong_code' ? 'Wrong code. ' + d.attempts_left + ' tries left.'
+        : d.error === 'too_many_attempts' || d.error === 'code_expired' ? 'Code no longer valid. Reload and request a new one.'
+        : 'Could not verify the code.';
+    });
   };
 }
 

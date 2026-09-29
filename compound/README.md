@@ -63,10 +63,10 @@ Edit `public_html/api/config.php` and fill in:
 - `db` → your database name / user / password
 - `claude.api_key` → your Claude API key; set `claude.model` to a model your key can use
   (e.g. `claude-sonnet-4-5`, or a Haiku model for lower cost)
-- `mail.from` → a real mailbox on your domain (create one in hPanel → Emails)
+- `mail` → the mailbox that sends sign-in codes (see **Email** below): `from`, and under `smtp` the
+  mailbox address and password
 - `admin_emails` → your email (this is who can open `/admin`)
 - `app_url` → `https://yourdomain.com`
-- Leave `dev_echo_code` as `true` for your first test, then set it to **`false`** for launch.
 
 ### 5. Permissions
 Make sure `public_html/api/uploads/` is writable (chmod `755`, or `775` if uploads fail).
@@ -78,8 +78,7 @@ If you get a database error, re-check step 4.
 
 ### 7. Use the app
 Open `https://yourdomain.com`. Go through onboarding → enter your email.
-- With `dev_echo_code: true`, the 6-digit code is shown in the app (and returned by the API) so you can
-  log in even before email delivery is set up.
+- A 6-digit code arrives by email. Enter it to continue; it expires in 10 minutes and only the newest code works.
 - Add to Home Screen (iOS Safari: Share → Add to Home Screen; Android Chrome: Install app) to run it as a PWA.
 
 ### 8. Open the admin
@@ -91,14 +90,20 @@ Manage books, lessons, insight cards, quiz questions, and assignments, and revie
 
 ## Email (login codes)
 
-The app sends the 6-digit code with PHP `mail()`, using `mail.from`. On shared hosting this works only if
-the *from* address is a real mailbox on your domain. If codes don't arrive:
-- **Quick path:** keep `dev_echo_code: true` while you test (code appears in-app).
-- **Reliable path:** send via SMTP. Create an email account in hPanel, then either install PHPMailer and
-  swap the `send_login_email()` body in `api/routes/auth.php`, or use Hostinger's SMTP details. Ask me and
-  I'll wire PHPMailer in for you.
+Sign-in codes are sent over SMTP by `api/mailer.php` (no Composer or PHPMailer needed).
 
-Set `dev_echo_code: false` before you share the app publicly.
+1. hPanel → **Emails** → create a mailbox such as `no-reply@yourdomain.com`.
+2. In `api/config.php` set `mail.from` and `mail.smtp.user` to that address, and `mail.smtp.pass` to its
+   password. Hostinger's defaults are already filled in: `smtp.hostinger.com`, port `465`, `ssl`.
+   (Other providers: port `587` with `'secure' => 'tls'`.)
+3. hPanel → **Emails → DNS / Deliverability**: make sure SPF, DKIM and DMARC show as set, or codes will
+   land in spam.
+
+If sending fails the app says so and no code is issued; the reason is written to the PHP error log
+(hPanel → Advanced → Error logs), e.g. a wrong mailbox password.
+
+Rules: one code per minute per email (5 per 15 minutes), 5 wrong guesses burns the code, and requesting
+a new code invalidates the old one.
 
 ---
 

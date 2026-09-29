@@ -38,7 +38,7 @@ public/assets/css/styles.css
 public/sw.js, manifest.webmanifest, assets/icons/*
 public/api/index.php     router → routes/*.php
 public/api/config.php    SECRETS (git-ignored) — copy of config.sample.php
-public/api/db.php helpers.php claude.php
+public/api/db.php helpers.php claude.php mailer.php
 public/api/routes/       auth, onboarding, paths, lessons, quiz, assignments, library, progress, coach, admin
 public/api/uploads/      assignment files (private; served only via GET /api/uploads/{id} with auth)
 public/admin/            content admin SPA (index.html + admin.js)
@@ -54,8 +54,8 @@ quiz_questions+options, one assignment)**.
 There's no MySQL-free path (SQL is MySQL-specific), so use a local MySQL/MariaDB:
 1. `mysql -u root -p < sql/schema.sql && mysql -u root -p yourdb < sql/seed.sql`
 2. Copy `public/api/config.sample.php` → `public/api/config.php`, set DB creds + Claude key + your
-   admin email. Keep `dev_echo_code => true` locally (login code is returned in the API response, so you
-   can log in without email).
+   admin email. For SMTP, point `mail.smtp` at a local catcher (e.g. Mailpit on port 1025,
+   `'secure' => 'none'`, no user) and read the code there.
 3. Serve the docroot **with the API rewrite**. The simplest correct option is Apache/`php` + the included
    `.htaccess`. `php -S` alone won't apply `.htaccess`, so if you use it, hit the API as
    `/api/index.php?route=...` or add a tiny router. On Hostinger the `.htaccess` handles it.
@@ -63,20 +63,18 @@ There's no MySQL-free path (SQL is MySQL-specific), so use a local MySQL/MariaDB
 
 ## Deploy (Hostinger)
 Import `schema.sql` then `seed.sql` in phpMyAdmin → upload contents of `public/` to `public_html` →
-edit `api/config.php` → make `api/uploads/` writable → set `dev_echo_code => false` → visit `/admin`
+edit `api/config.php` → make `api/uploads/` writable → fill in `mail.smtp` → visit `/admin`
 (sign in with an `admin_emails` address). Full steps in `README.md`.
 
 ## Gotchas
-- Set `dev_echo_code => false` before anything public — `true` returns login codes in the API response.
-- PHP `mail()` on shared hosting is unreliable; SMTP/PHPMailer is the production path (not yet wired —
-  swap `send_login_email()` in `routes/auth.php`).
+- Login codes are sent only by email via `api/mailer.php` (SMTP). Never return codes in API responses.
 - `fileinfo`, `curl`, `pdo_mysql` PHP extensions must be enabled.
 - Uploaded files are private; never expose the `uploads/` dir directly (its `.htaccess` denies access).
 
 ## Roadmap / not done yet
 - More paths (Productivity, Interview Prep, Leadership) — schema supports it; add a `paths` row with a
   matching `goal` + lessons via admin.
-- SMTP email for login codes + assignment-due reminders (cron).
+- Assignment-due reminder emails (cron; reuse `send_mail()` from `api/mailer.php`).
 - On-demand AI book summaries (Claude client already present in `claude.php`).
 - Push notifications for streaks.
 

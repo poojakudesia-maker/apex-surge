@@ -90,38 +90,79 @@ el('finishOnboarding').addEventListener('click', function () {
   if (state.token) { submitOnboarding(); } else { show('s-email'); setTimeout(function () { el('emailInput').focus(); }, 100); }
 });
 
-el('sendCodeBtn').addEventListener('click', requestCode);
+el('sendCodeBtn').addEventListener('click', function () { requestCode(); });
 el('emailInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') requestCode(); });
-function requestCode() {
-  var email = el('emailInput').value.trim();
-  el('emailErr').textContent = '';
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('emailErr').textContent = 'Enter a valid email.'; return; }
-  var btn = el('sendCodeBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+
+function authErr(e, fallback) {
+  var d = (e && e.data) || {};
+  switch (d.error) {
+    case 'invalid_email': return 'Enter a valid email.';
+    case 'email_send_failed': return 'We couldn\u2019t send the email. Check the address or try again in a minute.';
+    case 'too_many_requests': return 'Too many tries. Please wait ' + (d.retry_after >= 120 ? Math.round(d.retry_after / 60) + ' minutes' : 'a minute') + '.';
+    case 'code_expired': return 'This code has expired. Tap \u201cResend code\u201d for a new one.';
+    case 'too_many_attempts': return 'Too many wrong tries. Tap \u201cResend code\u201d for a new one.';
+    case 'wrong_code': return 'That code isn\u2019t right.' + (d.attempts_left ? ' ' + d.attempts_left + (d.attempts_left === 1 ? ' try' : ' tries') + ' left.' : '');
+  }
+  return e && e.status ? fallback : 'No connection. Check your internet and try again.';
+}
+
+var resendTimer = null;
+function startResendCooldown(sec) {
+  var b = el('resendBtn'); clearInterval(resendTimer);
+  var left = sec;
+  function tick() {
+    if (left <= 0) { clearInterval(resendTimer); b.disabled = false; b.textContent = 'Resend code'; return; }
+    b.disabled = true; b.textContent = 'Resend code in ' + left + 's'; left--;
+  }
+  tick(); resendTimer = setInterval(tick, 1000);
+}
+
+function requestCode(isResend) {
+  var email = isResend ? state.pendingEmail : el('emailInput').value.trim();
+  var errEl = isResend ? el('codeErr') : el('emailErr');
+  errEl.textContent = '';
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { errEl.textContent = 'Enter a valid email.'; return; }
+  var btn = isResend ? el('resendBtn') : el('sendCodeBtn');
+  var label = btn.textContent; btn.disabled = true; btn.textContent = 'Sending\u2026';
   api('auth/request-code', { method: 'POST', body: { email: email } }).then(function (d) {
     state.pendingEmail = email;
     el('codeEmail').textContent = email;
-    show('s-code'); setTimeout(function () { el('codeInput').focus(); }, 100);
-    if (d.dev_code) { el('codeInput').value = d.dev_code; toast('Dev mode: code ' + d.dev_code); }
-    else if (!d.sent) toast('Email could not be sent — check mail setup.');
+    if (d.expires_in_min) el('codeTtl').textContent = d.expires_in_min;
+    el('codeInput').value = '';
+    if (isResend) toast('New code sent. Check your inbox.');
+    else { show('s-code'); setTimeout(function () { el('codeInput').focus(); }, 100); }
+    startResendCooldown(60);
   }).catch(function (e) {
-    el('emailErr').textContent = e.status === 429 ? 'Too many requests, wait a bit.' : 'Something went wrong.';
-  }).finally(function () { btn.disabled = false; btn.textContent = 'Send my code'; });
+    errEl.textContent = authErr(e, 'Could not send the code. Try again.');
+    if (isResend && e && e.data && e.data.retry_after) startResendCooldown(Math.min(e.data.retry_after, 60));
+    else { btn.disabled = false; btn.textContent = label; }
+  }).finally(function () {
+    if (!isResend) { btn.disabled = false; btn.textContent = 'Send my code'; }
+  });
 }
 
 el('verifyBtn').addEventListener('click', verifyCode);
 el('codeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') verifyCode(); });
-el('resendBtn').addEventListener('click', function () { el('emailInput').value = state.pendingEmail || ''; requestCode(); });
+el('codeInput').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '').slice(0, 6);
+  if (this.value.length === 6) verifyCode();
+});
+el('resendBtn').addEventListener('click', function () { requestCode(true); });
 function verifyCode() {
   var code = el('codeInput').value.replace(/\D/g, '');
+  var btn = el('verifyBtn');
+  if (btn.disabled) return;
   el('codeErr').textContent = '';
-  if (code.length !== 6) { el('codeErr').textContent = 'Enter the 6-digit code.'; return; }
-  var btn = el('verifyBtn'); btn.disabled = true; btn.textContent = 'Verifying…';
+  if (code.length !== 6) { el('codeErr').textContent = 'Enter the 6-digit code from your email.'; return; }
+  btn.disabled = true; btn.textContent = 'Verifying\u2026';
   api('auth/verify-code', { method: 'POST', body: { email: state.pendingEmail, code: code } }).then(function (d) {
+    clearInterval(resendTimer);
     state.token = d.token; localStorage.setItem(TOKEN_KEY, d.token); state.user = d.user;
     if (d.onboarded && !state.onboarding.goal) { loadHome().then(function () { show('s-home', { replace: true }); }); }
     else { submitOnboarding(); }
   }).catch(function (e) {
-    el('codeErr').textContent = e.status === 410 ? 'Code expired — resend a new one.' : 'Wrong code, try again.';
+    el('codeErr').textContent = authErr(e, 'Could not verify the code. Try again.');
+    el('codeInput').select();
   }).finally(function () { btn.disabled = false; btn.textContent = 'Verify & continue'; });
 }
 
@@ -280,19 +321,61 @@ function readerPrev() { var r = state.reader; if (r.idx > 0) { stopAudio(); r.id
 function scrollReader() { var c = el('cards'); c.scrollTo({ left: state.reader.idx * c.clientWidth, behavior: 'smooth' }); updateReaderProg(); }
 
 /* audio via Web Speech API, with simulated fallback */
-var audio = { playing: false, timer: null, pct: 0, rate: 1, rates: [1, 1.25, 1.5, 2], ri: 0, synth: window.speechSynthesis };
-function currentCardText() { var c = state.reader.lesson.cards[state.reader.idx]; return [c.heading, c.quote, c.body, c.callout_body].filter(Boolean).join('. '); }
+var audio = { playing: false, timer: null, pct: 0, rate: 1, rates: [1, 1.25, 1.5, 2], ri: 0, synth: window.speechSynthesis, voice: null };
+
+/* Narrator: a calm, clear female voice with an Indian English accent.
+   Voices come from the device, so we rank what's installed:
+   named en-IN female voices > any en-IN voice not known to be male > hi-IN Google voice > any female English voice. */
+var VOICE_BASE_RATE = 0.9, VOICE_PITCH = 1.05;
+var IN_FEMALE = /neerja|heera|veena|isha|kajal|aditi|raveena|swara|en-in-x-(ena|ahp|cxx)/i;
+var IN_MALE = /prabhat|ravi|rishi|hemant|en-in-x-(end|ene)/i;
+var EN_FEMALE = /female|samantha|karen|moira|tessa|zira|aria|jenny|libby|sonia|serena|fiona|victoria/i;
+function pickVoice() {
+  if (!audio.synth) return null;
+  var vs = audio.synth.getVoices() || [];
+  if (!vs.length) return null;
+  function lang(v) { return (v.lang || '').replace('_', '-').toLowerCase(); }
+  function score(v) {
+    var n = v.name + ' ' + (v.voiceURI || ''), l = lang(v), sc = 0;
+    if (l === 'en-in') sc = IN_FEMALE.test(n) ? 100 : IN_MALE.test(n) ? 40 : 80;
+    else if (l === 'hi-in' && /google/i.test(n)) sc = 60;
+    else if (l.indexOf('en') === 0 && EN_FEMALE.test(n)) sc = 30;
+    else if (l.indexOf('en') === 0) sc = 10;
+    if (sc && /natural|neural|online|enhanced|premium|network/i.test(n)) sc += 5; // better-quality engines
+    return sc;
+  }
+  var best = null, bs = 0;
+  vs.forEach(function (v) { var sc = score(v); if (sc > bs) { bs = sc; best = v; } });
+  return best;
+}
+if (audio.synth) {
+  audio.voice = pickVoice();
+  if ('onvoiceschanged' in audio.synth) audio.synth.addEventListener('voiceschanged', function () { audio.voice = pickVoice(); });
+}
+function splitSentences(text) {
+  return (text.match(/[^.!?…]+[.!?…]*["'”’)]*\s*/g) || [text])
+    .map(function (x) { return x.trim(); }).filter(Boolean);
+}
+function currentCardText() { var c = state.reader.lesson.cards[state.reader.idx]; return [c.heading, c.quote, c.body, c.callout_body].filter(Boolean)
+    .map(function (x) { x = String(x).trim(); return /[.!?\u2026"'\u201d\u2019]$/.test(x) ? x : x + '.'; }).join(' '); }
 function togglePlay() { audio.playing ? stopAudio() : startAudio(); }
 function startAudio() {
   audio.playing = true; var pb = el('playbtn'); if (pb) pb.textContent = '❚❚';
   var text = currentCardText();
   if (audio.synth && 'SpeechSynthesisUtterance' in window) {
     audio.synth.cancel();
-    var u = new SpeechSynthesisUtterance(text); u.rate = audio.rate;
-    u.onend = function () { stopAudio(); };
-    audio.utter = u; audio.synth.speak(u);
+    if (!audio.voice) audio.voice = pickVoice();
+    // one utterance per sentence: natural pauses, and avoids Chrome cutting off long utterances
+    var parts = splitSentences(text);
+    parts.forEach(function (p, i) {
+      var u = new SpeechSynthesisUtterance(p);
+      if (audio.voice) { u.voice = audio.voice; u.lang = audio.voice.lang; } else u.lang = 'en-IN';
+      u.rate = VOICE_BASE_RATE * audio.rate; u.pitch = VOICE_PITCH; u.volume = 1;
+      if (i === parts.length - 1) u.onend = function () { if (audio.playing) stopAudio(); };
+      audio.synth.speak(u);
+    });
   }
-  var words = text.split(/\s+/).length; var dur = Math.max(4, words / (2.6 * audio.rate));
+  var words = text.split(/\s+/).length; var dur = Math.max(4, words / (2.6 * VOICE_BASE_RATE * audio.rate));
   var mm = Math.floor(dur / 60), ss = ('0' + Math.floor(dur % 60)).slice(-2);
   var td = el('tdur'); if (td) td.textContent = mm + ':' + ss;
   audio.pct = 0; var step = 100 / (dur * 10);

@@ -1,5 +1,8 @@
 <?php
 /** Passwordless auth: email -> 6-digit code -> bearer token. */
+require_once __DIR__ . '/../mailer.php';
+
+const MAX_CODE_ATTEMPTS = 5;
 
 function route_auth($method, $seg) {
   $action = $seg[0] ?? '';
@@ -17,23 +20,28 @@ function auth_request_code() {
   $email = valid_email($b['email'] ?? '');
   if (!$email) fail('invalid_email');
 
-  // basic abuse protection: 5 requests / 15 min per email + per IP
+  // abuse protection: 1 send / 60 s and 5 / 15 min per email, 20 / 15 min per IP
   $ip = $_SERVER['REMOTE_ADDR'] ?? '0';
+  if (!rate_ok('cool:' . $email, 1, 60)) json_out(['error' => 'too_many_requests', 'retry_after' => 60], 429);
   if (!rate_ok('code:' . $email, 5, 900) || !rate_ok('ip:' . $ip, 20, 900)) {
-    fail('too_many_requests', 429);
+    json_out(['error' => 'too_many_requests', 'retry_after' => 900], 429);
   }
+
+  // only the newest code is ever valid
+  db()->prepare('UPDATE login_codes SET consumed_at = NOW() WHERE email = ? AND consumed_at IS NULL')->execute([$email]);
 
   $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
   $ttl  = (int)cfg('code_ttl_min');
   db()->prepare(
     'INSERT INTO login_codes (email, code_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))'
   )->execute([$email, hash('sha256', $code), $ttl]);
+  $code_id = db()->lastInsertId();
 
-  $sent = send_login_email($email, $code);
-
-  $out = ['sent' => $sent];
-  if (cfg('dev_echo_code')) $out['dev_code'] = $code; // TEST ONLY
-  json_out($out);
+  if (!send_login_email($email, $code)) {
+    db()->prepare('UPDATE login_codes SET consumed_at = NOW() WHERE id = ?')->execute([$code_id]);
+    fail('email_send_failed', 502);
+  }
+  json_out(['sent' => true, 'expires_in_min' => $ttl]);
 }
 
 function auth_verify_code() {
@@ -42,19 +50,25 @@ function auth_verify_code() {
   $code  = preg_replace('/\D/', '', (string)($b['code'] ?? ''));
   if (!$email || strlen($code) !== 6) fail('invalid_input');
 
+  $ip = $_SERVER['REMOTE_ADDR'] ?? '0';
+  if (!rate_ok('verify-ip:' . $ip, 30, 900)) fail('too_many_requests', 429);
+
   $stmt = db()->prepare(
     'SELECT * FROM login_codes WHERE email = ? AND consumed_at IS NULL AND expires_at > NOW()
      ORDER BY id DESC LIMIT 1');
   $stmt->execute([$email]);
   $row = $stmt->fetch();
   if (!$row) fail('code_expired', 410);
-  if ((int)$row['attempts'] >= 6) fail('too_many_attempts', 429);
 
   if (!hash_equals($row['code_hash'], hash('sha256', $code))) {
-    db()->prepare('UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?')->execute([$row['id']]);
-    fail('wrong_code', 401);
+    $left = MAX_CODE_ATTEMPTS - ((int)$row['attempts'] + 1);
+    // burn the code after too many wrong guesses; the user must request a new one
+    db()->prepare('UPDATE login_codes SET attempts = attempts + 1, consumed_at = IF(?, NOW(), NULL) WHERE id = ?')
+      ->execute([$left <= 0 ? 1 : 0, $row['id']]);
+    if ($left <= 0) fail('too_many_attempts', 429);
+    json_out(['error' => 'wrong_code', 'attempts_left' => $left], 401);
   }
-  db()->prepare('UPDATE login_codes SET consumed_at = NOW() WHERE id = ?')->execute([$row['id']]);
+  db()->prepare('UPDATE login_codes SET consumed_at = NOW() WHERE email = ? AND consumed_at IS NULL')->execute([$email]);
 
   // find or create user
   $u = db()->prepare('SELECT * FROM users WHERE email = ?');
@@ -124,16 +138,21 @@ function db_onboarded($uid) {
 }
 
 function send_login_email($email, $code) {
-  $m = cfg('mail');
-  $subject = 'Your Compound sign-in code: ' . $code;
-  $body =
-    "Hi,\r\n\r\nYour Compound sign-in code is: $code\r\n\r\n" .
-    "It expires in " . (int)cfg('code_ttl_min') . " minutes. If you did not request this, ignore this email.\r\n\r\n— Compound";
-  $headers =
-    'From: ' . ($m['from_name'] ?? 'Compound') . ' <' . ($m['from'] ?? 'no-reply@localhost') . ">\r\n" .
-    'Reply-To: ' . ($m['from'] ?? 'no-reply@localhost') . "\r\n" .
-    "Content-Type: text/plain; charset=UTF-8\r\n" .
-    'X-Mailer: PHP/' . phpversion();
-  // @ to avoid leaking warnings into JSON; return value tells the client if it left the box.
-  return @mail($email, $subject, $body, $headers);
+  $ttl = (int)cfg('code_ttl_min');
+  $app = cfg('mail')['from_name'] ?? 'Compound';
+  $subject = $code . ' is your ' . $app . ' sign-in code';
+  $text =
+    "Your $app sign-in code is: $code\r\n\r\n" .
+    "Enter it in the app to continue. It expires in $ttl minutes.\r\n\r\n" .
+    "If you didn't request this, you can ignore this email.\r\n";
+  $a = htmlspecialchars($app, ENT_QUOTES);
+  $html =
+    '<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1c1c1e">' .
+    '<table role="presentation" width="100%" style="max-width:440px;margin:0 auto;background:#fff;border-radius:12px;padding:28px">' .
+    '<tr><td><p style="margin:0 0 16px;font-size:16px">Your ' . $a . ' sign-in code:</p>' .
+    '<p style="margin:0 0 16px;font-size:34px;font-weight:bold;letter-spacing:8px;color:#6242F5">' . $code . '</p>' .
+    '<p style="margin:0 0 8px;font-size:14px;color:#555">Enter it in the app to continue. It expires in ' . $ttl . ' minutes.</p>' .
+    '<p style="margin:0;font-size:13px;color:#888">If you didn\'t request this, you can ignore this email.</p>' .
+    '</td></tr></table></body></html>';
+  return send_mail($email, $subject, $text, $html);
 }
