@@ -347,3 +347,138 @@ button.gchip{font-family:inherit}
 .booksummary p{font-size:15px;line-height:1.65;margin:0 0 14px;color:var(--ink)}
 .bd-hero .bookcover .au{display:none}
 .bd-hero .bookcover .ttl{overflow-wrap:anywhere}
+
+/* ================= Motion & graphics ================= */
+/* screen entrance */
+.screen.active > *{animation:rise .38s cubic-bezier(.2,.8,.2,1) both}
+.screen.active > .tabbar,.screen.active > .footer{animation:none}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* staggered lists */
+.stagger > *{animation:rise .42s cubic-bezier(.2,.8,.2,1) both}
+.stagger > *:nth-child(2){animation-delay:.05s}.stagger > *:nth-child(3){animation-delay:.1s}
+.stagger > *:nth-child(4){animation-delay:.15s}.stagger > *:nth-child(5){animation-delay:.2s}
+.stagger > *:nth-child(6){animation-delay:.25s}.stagger > *:nth-child(n+7){animation-delay:.3s}
+/* press feedback */
+.btn,.opt,.gchip,.q,.lesson,.bookcard,.libcard,.asgrow,.playbtn,.spd,.tabbar button{transition:transform .15s cubic-bezier(.2,.8,.2,1),box-shadow .2s,background .2s,border-color .2s,opacity .2s}
+.bookcard:active,.libcard:active,.asgrow:active,.lesson:not(.locked):active{transform:scale(.97)}
+.gchip:active,.q:active,.spd:active,.playbtn:active{transform:scale(.92)}
+@media (hover:hover){
+  .bookcard:hover .bookcover,.libcard:hover .bookcover{transform:translateY(-3px) rotate(-.6deg);box-shadow:var(--shadow-lg)}
+  .asgrow:hover,.card.pathcard:hover{border-color:var(--brand);box-shadow:var(--shadow)}
+  .opt:not(.locked):hover{border-color:var(--brand);transform:translateX(2px)}
+}
+.bookcover{transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+/* tab bar: selected icon hops */
+.tabbar button.on .ti{animation:hop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes hop{0%{transform:translateY(0)}40%{transform:translateY(-5px) scale(1.12)}100%{transform:none}}
+/* streak flame flickers */
+.streakpill{animation:glow 2.8s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--amber) 0%,transparent)}50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--amber) 22%,transparent)}}
+/* mission card halos drift */
+.mission .halo{animation:drift 9s ease-in-out infinite alternate}
+.mission .halo.two{animation-duration:12s}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(-18px,14px) scale(1.08)}}
+.mission .go{transition:transform .15s}.mission .go:active{transform:scale(.97)}
+/* progress rings draw in */
+.ring circle:last-child,.bigring circle:last-child{animation:draw 1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes draw{from{stroke-dashoffset:var(--circ,465)}}
+.bars .bar{transform-origin:bottom;animation:growbar .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes growbar{from{transform:scaleY(0)}}
+/* quiz feedback */
+.opt.correct{animation:pop2 .35s cubic-bezier(.2,1.6,.4,1)}
+.opt.wrong{animation:shake .4s}
+@keyframes pop2{50%{transform:scale(1.03)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+/* live play button pulses */
+.playbtn.live{box-shadow:0 0 0 0 color-mix(in srgb,var(--brand) 50%,transparent);animation:pulse 1.6s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 10px color-mix(in srgb,var(--brand) 0%,transparent)}100%{box-shadow:0 0 0 0 transparent}}
+
+/* book covers: printed-pattern graphics + spine */
+.bookcover::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;
+  background:radial-gradient(circle at 85% 18%,rgba(255,255,255,.9) 0 18%,transparent 19%),
+             radial-gradient(circle at 85% 18%,transparent 0 30%,rgba(255,255,255,.5) 31% 32%,transparent 33%)}
+.cov2::before{background:repeating-linear-gradient(135deg,rgba(255,255,255,.5) 0 2px,transparent 2px 14px)}
+.cov3::before{background:radial-gradient(circle at 20% 25%,rgba(255,255,255,.8) 0 12%,transparent 13%),radial-gradient(circle at 70% 40%,rgba(255,255,255,.5) 0 22%,transparent 23%)}
+.cov4::before{background:conic-gradient(from 200deg at 90% 10%,rgba(255,255,255,.7) 0 25deg,transparent 25deg 50deg,rgba(255,255,255,.5) 50deg 75deg,transparent 75deg)}
+.cov5::before{background:repeating-radial-gradient(circle at 100% 0,rgba(255,255,255,.55) 0 2px,transparent 2px 16px)}
+.cov6::before{background:linear-gradient(160deg,transparent 45%,rgba(255,255,255,.6) 45% 47%,transparent 47% 60%,rgba(255,255,255,.4) 60% 61%,transparent 61%)}
+.bookcover::after{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(255,255,255,.08) 60%,transparent);pointer-events:none}
+.bookcover > *{position:relative}
+.bookcover .rank{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.92);color:#191C24;font-family:var(--font-d);font-weight:800;font-size:11px;border-radius:999px;padding:3px 7px;z-index:1}
+.bookcard.picked{width:156px}.bookcard.picked .bookcover{width:156px;height:196px}
+.bookcard .why{font-size:12px;line-height:1.4;color:var(--muted);margin-top:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* build screen: books stack in */
+.buildart{min-height:120px;display:grid;place-items:center;margin-bottom:8px}
+.buildart .stack{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;max-width:300px}
+.bookcover.mini{width:48px;height:66px;padding:5px;border-radius:7px;justify-content:flex-end;animation:dropin .5s cubic-bezier(.2,1.4,.4,1) both;animation-delay:calc(var(--i) * 90ms)}
+.bookcover.mini .ttl{font-size:6.5px;line-height:1.15;font-family:var(--font-b);font-weight:800;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bookcover.mini::after{width:3px}
+@keyframes dropin{from{opacity:0;transform:translateY(-26px) rotate(-8deg)}to{opacity:1;transform:none}}
+.buildlog .row .b i{width:9px;height:9px;border-radius:50%;border:2px solid var(--grow);border-right-color:transparent;animation:spin .8s linear infinite}
+.buildlog .row.on{opacity:1;color:var(--ink)}
+.buildlog .row.done{opacity:1;color:var(--ink)}
+.buildlog .row.done .b{background:var(--grow);color:#fff;animation:pop .35s cubic-bezier(.2,1.4,.5,1)}
+.buildlog .row.skip{opacity:.8}
+.buildlog .row.skip .b{background:var(--surface-2);color:var(--muted)}
+.buildlog .row:not(.on):not(.done):not(.skip) .b i{animation:none;border-color:var(--line)}
+
+/* crafting a lesson */
+.craft{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
+.craft h2{font-family:var(--font-d);margin:14px 0 2px}
+.craft p{margin:0 0 16px;min-height:20px;font-size:14px}
+.craftart{position:relative;width:120px;height:120px}
+.craftart .sheet{position:absolute;inset:14px 22px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.craftart .s1{transform:rotate(-10deg) translateX(-10px);background:var(--brand-wash);animation:fan 2.4s ease-in-out infinite alternate}
+.craftart .s2{transform:rotate(7deg) translateX(8px);background:var(--grow-wash);animation:fan 2.4s ease-in-out infinite alternate-reverse}
+.craftart .s3{background:repeating-linear-gradient(var(--surface) 0 14px,var(--line-soft) 14px 16px);background-position:0 12px}
+.craftart .pen{position:absolute;right:-8px;bottom:6px;font-size:26px;color:var(--brand);animation:write 1.2s ease-in-out infinite}
+@keyframes fan{to{transform:rotate(0) translateX(0)}}
+@keyframes write{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(-14px,-6px) rotate(-12deg)}}
+/* skeleton shimmer */
+.skel{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;margin:8px 0 16px}
+.skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--surface-2) 0,var(--line) 40%,var(--surface-2) 80%);background-size:300% 100%;animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+.writing{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);padding:6px 0}
+.dotpulse{display:inline-flex;gap:4px}.dotpulse i{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:blink 1.2s infinite}
+.dotpulse i:nth-child(2){animation-delay:.2s}.dotpulse i:nth-child(3){animation-delay:.4s}
+.whycard{background:var(--brand-wash);border-radius:16px;padding:13px 15px;font-size:14px;line-height:1.5;margin-bottom:12px}
+.whycard .h{font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--brand-ink);margin-bottom:4px}
+
+/* SMART goal cards (swipeable, insight-card style) */
+.smartrow{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -20px 16px;padding:4px 20px 6px}
+.smartrow::-webkit-scrollbar{height:0}
+.smartcard{flex:none;width:78%;max-width:280px;scroll-snap-align:start;border-radius:20px;padding:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.smartcard::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:var(--brand-wash);z-index:0}
+.smartcard > *{position:relative;z-index:1}
+.smartcard .letter{width:40px;height:40px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center;font-family:var(--font-d);font-weight:800;font-size:22px}
+.smartcard:nth-child(2) .letter{background:var(--grow)}.smartcard:nth-child(3) .letter{background:var(--amber)}
+.smartcard:nth-child(4) .letter{background:#C0397E}.smartcard:nth-child(5) .letter{background:#2E77C9}
+.smartcard .lbl{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+.smartcard .txt{font-weight:700;font-size:15px;line-height:1.4}
+/* lesson recap */
+.recap{margin-bottom:16px}
+.recapcard{border:1px solid var(--line);border-radius:16px;padding:0 14px;margin-bottom:8px;background:var(--surface)}
+.recapcard summary{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:center;padding:13px 0;font-weight:700;font-size:14px}
+.recapcard summary::-webkit-details-marker{display:none}
+.recapcard summary .n{width:24px;height:24px;border-radius:50%;background:var(--brand-wash);color:var(--brand-ink);font-size:12px;font-weight:800;display:grid;place-items:center;flex:none}
+.recapcard[open] summary{border-bottom:1px solid var(--line-soft)}
+.recapcard p{font-size:14px;line-height:1.55;margin:10px 0}
+.recapcard .callout{font-size:13.5px;background:var(--surface-2);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.pad .audiobar + .smartrow,.pad .audiobar + .recap{margin-top:8px}
+.statuscard{margin-bottom:14px;border-color:var(--grow)}
+/* assignments list */
+.asgrow{margin-bottom:10px;cursor:pointer}
+.asgrow .asgtop{display:flex;align-items:center;justify-content:space-between}
+.asgrow .chev{color:var(--faint);font-size:20px}
+.asgrow .t{font-weight:700;font-size:15px;margin-top:8px}
+.asgrow .goal{font-size:13px;line-height:1.45;margin-top:6px;color:var(--muted);display:flex;gap:8px}
+.asgrow .goal b{width:20px;height:20px;border-radius:6px;background:var(--brand);color:#fff;font-size:11px;display:grid;place-items:center;flex:none}
+
+/* confetti */
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall 1.8s cubic-bezier(.25,.6,.35,1) forwards}
+@keyframes fall{to{transform:translate(var(--dx),105vh) rotate(var(--r));opacity:.9}}
+
+@media (prefers-reduced-motion:reduce){.screen.active > *,.stagger > *{animation:none}}
+.hscroll,.smartrow{scroll-padding:0 20px}

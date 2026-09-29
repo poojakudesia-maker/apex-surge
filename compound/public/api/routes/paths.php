@@ -5,7 +5,9 @@ function route_paths($method, $seg) {
   $user = require_user();
 
   if ($method === 'GET' && empty($seg)) {
-    $rows = db()->query('SELECT id, slug, title, subtitle, goal, description FROM paths ORDER BY id')->fetchAll();
+    $r = db()->prepare('SELECT id, slug, title, subtitle, goal, description FROM paths WHERE user_id IS NULL OR user_id = ? ORDER BY id');
+    $r->execute([$user['id']]);
+    $rows = $r->fetchAll();
     json_out(['paths' => $rows]);
   }
 
@@ -14,7 +16,7 @@ function route_paths($method, $seg) {
     $p = db()->prepare('SELECT * FROM paths WHERE id = ?');
     $p->execute([$pid]);
     $path = $p->fetch();
-    if (!$path) fail('not_found', 404);
+    if (!$path || ($path['user_id'] !== null && (int)$path['user_id'] !== (int)$user['id'])) fail('not_found', 404);
     $path['lessons'] = lessons_with_status($pid, $user['id']);
     $done = count(array_filter($path['lessons'], fn($l) => $l['status'] === 'done'));
     $path['total'] = count($path['lessons']);
@@ -31,7 +33,8 @@ function lessons_with_status($pid, $uid) {
   $stmt = db()->prepare(
     'SELECT l.id, l.idx, l.title, l.est_minutes, l.mission_line, l.source_book_id,
             b.title AS source_title,
-            ul.status AS user_status
+            ul.status AS user_status,
+            (SELECT COUNT(*) FROM cards c WHERE c.lesson_id = l.id) AS card_count
      FROM lessons l
      LEFT JOIN books b ON b.id = l.source_book_id
      LEFT JOIN user_lesson ul ON ul.lesson_id = l.id AND ul.user_id = ?
@@ -56,6 +59,7 @@ function lessons_with_status($pid, $uid) {
       'mission_line' => $r['mission_line'],
       'source_title' => $r['source_title'],
       'status'       => $status,
+      'ready'        => (int)$r['card_count'] > 0,
     ];
   }
   return $out;

@@ -1,15 +1,17 @@
--- Compound — seed content. Run AFTER schema.sql.
+-- Compound — seed content. Run AFTER schema.sql (and any sql/migrations/*.sql on older installs).
 -- Safe to re-run: clears content tables first (does NOT touch users/progress).
 SET NAMES utf8mb4;
 SET foreign_key_checks = 0;
-DELETE FROM quiz_options;
-DELETE FROM quiz_questions;
-DELETE FROM cards;
-DELETE FROM assignments;
-DELETE FROM lessons;
-DELETE FROM paths;
-DELETE FROM book_insights;
-DELETE FROM books;
+-- Only curated content is replaced; AI books and learners' personal paths are kept.
+DELETE qo FROM quiz_options qo JOIN quiz_questions q ON q.id = qo.question_id
+  JOIN lessons l ON l.id = q.lesson_id JOIN paths p ON p.id = l.path_id WHERE p.user_id IS NULL;
+DELETE q FROM quiz_questions q JOIN lessons l ON l.id = q.lesson_id JOIN paths p ON p.id = l.path_id WHERE p.user_id IS NULL;
+DELETE c FROM cards c JOIN lessons l ON l.id = c.lesson_id JOIN paths p ON p.id = l.path_id WHERE p.user_id IS NULL;
+DELETE a FROM assignments a JOIN lessons l ON l.id = a.lesson_id JOIN paths p ON p.id = l.path_id WHERE p.user_id IS NULL;
+DELETE l FROM lessons l JOIN paths p ON p.id = l.path_id WHERE p.user_id IS NULL;
+DELETE FROM paths WHERE user_id IS NULL;
+DELETE bi FROM book_insights bi JOIN books b ON b.id = bi.book_id WHERE b.source = 'curated';
+DELETE FROM books WHERE source = 'curated';
 SET foreign_key_checks = 1;
 
 -- ---------- Books ----------

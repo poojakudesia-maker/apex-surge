@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS onboarding (
   level         VARCHAR(30) DEFAULT NULL,
   daily_minutes INT DEFAULT 10,
   format        VARCHAR(20) DEFAULT 'both',
+  plan_status   VARCHAR(20) NOT NULL DEFAULT 'none', -- none / ready / failed (AI book plan)
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id),
@@ -70,6 +71,10 @@ CREATE TABLE IF NOT EXISTS books (
   summary     TEXT DEFAULT NULL,         -- full written summary; paragraphs separated by a blank line
   minutes     INT NOT NULL DEFAULT 9,
   sort        INT NOT NULL DEFAULT 0,
+  source      VARCHAR(20) NOT NULL DEFAULT 'curated', -- curated / ai
+  needs_review TINYINT(1) NOT NULL DEFAULT 0,        -- AI content waiting for an admin look
+  is_hidden   TINYINT(1) NOT NULL DEFAULT 0,         -- hidden by an admin
+  gen_status  VARCHAR(20) NOT NULL DEFAULT 'ready',  -- pending / ready / failed (AI summary)
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_books_slug (slug)
@@ -93,9 +98,11 @@ CREATE TABLE IF NOT EXISTS paths (
   subtitle    VARCHAR(255) DEFAULT NULL,
   goal        VARCHAR(60) NOT NULL DEFAULT 'Communication',
   description TEXT DEFAULT NULL,
+  user_id     BIGINT UNSIGNED DEFAULT NULL,           -- set for a learner's personal AI path
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_paths_slug (slug)
+  UNIQUE KEY uq_paths_slug (slug),
+  KEY idx_paths_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lessons (
@@ -159,6 +166,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   instructions VARCHAR(600) NOT NULL,
   examples     VARCHAR(600) DEFAULT NULL,
   due_days     INT NOT NULL DEFAULT 2,
+  smart_goal   TEXT DEFAULT NULL,                    -- JSON: specific/measurable/achievable/relevant/time_bound
   PRIMARY KEY (id),
   UNIQUE KEY uq_assign_lesson (lesson_id),
   CONSTRAINT fk_assign_lesson FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
@@ -254,3 +262,33 @@ CREATE TABLE IF NOT EXISTS user_stats (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET foreign_key_checks = 1;
+
+-- ---------- AI plan ----------
+-- The 10 books Claude picked for a learner, in learning order
+CREATE TABLE IF NOT EXISTS user_books (
+  user_id    BIGINT UNSIGNED NOT NULL,
+  book_id    BIGINT UNSIGNED NOT NULL,
+  rank_no    INT NOT NULL DEFAULT 0,
+  reason     VARCHAR(400) DEFAULT NULL,             -- why this book helps the learner's goal
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, book_id),
+  KEY idx_ub_rank (user_id, rank_no),
+  CONSTRAINT fk_ub_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ub_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Shared AI lesson per book (cards + quiz as JSON), copied into each learner's lesson
+CREATE TABLE IF NOT EXISTS book_lessons (
+  id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  book_id      BIGINT UNSIGNED NOT NULL,
+  title        VARCHAR(200) NOT NULL,
+  mission_line VARCHAR(255) DEFAULT NULL,
+  est_minutes  INT NOT NULL DEFAULT 10,
+  content      MEDIUMTEXT NOT NULL,                 -- JSON {cards:[...], quiz:[...]}
+  needs_review TINYINT(1) NOT NULL DEFAULT 1,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_bl_book (book_id),
+  CONSTRAINT fk_bl_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

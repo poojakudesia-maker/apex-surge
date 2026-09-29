@@ -107,14 +107,43 @@ a new code invalidates the old one.
 
 ---
 
+## AI learning plans
+
+With a Claude API key in `config.php`, onboarding builds a personal plan instead of the curated path:
+
+1. **10 books for the learner's goal.** Claude picks and orders them from the learner's goal, focus areas,
+   role, level, daily time and target. A book already in the catalogue is reused; a new one is added and
+   flagged for review.
+2. **Summaries to read or listen to.** Written once per book and shared by every learner who has that
+   book. The first two are written during onboarding, the rest in the background or when a book is opened.
+3. **One lesson per book.** Five insight cards and a three-question quiz on the book's most practical
+   idea, written the first time any learner reaches that book and reused after that.
+4. **A personal SMART goal and field assignment for each lesson**, written for that learner from their
+   profile, recent quiz scores and past assignment notes. Shown as insight cards on the assignment
+   screen (with a listen button), next to a recap of the lesson, and listed under Progress.
+
+Everything goes live immediately. **Admin → AI review** lists new AI books and lessons: approve, edit,
+hide a book, or regenerate. Hidden books are never offered again.
+
+Cost control: `content_model` / `content_effort` in `config.php`. A new learner costs about 2 to 4
+Claude calls up front (book list, a couple of summaries, lesson 1), then one small call per lesson for
+the SMART goal, plus one call for each book or lesson nobody has needed before. The API errors go to
+the PHP error log. PHP's time limit must allow about 3 minutes per request (Hostinger's default is fine;
+if you see timeouts, raise `max_execution_time` in hPanel → PHP Configuration).
+
+Without a key the app uses the curated path from `seed.sql`.
+
+---
+
 ## Upgrading an existing install
 
 If you already imported `schema.sql` before book summaries existed:
 
-1. phpMyAdmin → your database → **Import** → `sql/migrations/001_book_summaries.sql`
-   (adds the `books.summary` column; "Duplicate column name" means it's already there).
-2. Import `sql/seed.sql` again to load the summaries (untick "Enable foreign key checks" if learners
-   already have progress).
+1. phpMyAdmin → your database → **Import**, in order, each migration you haven't run yet:
+   `sql/migrations/001_book_summaries.sql`, then `sql/migrations/002_ai_plans.sql`
+   ("Duplicate column name" means that part is already there).
+2. Import `sql/seed.sql` again. It only replaces the curated content; AI books and learners' personal
+   plans are kept.
 3. Re-upload the contents of `public/`, keeping your existing `api/config.php`, and add the new
    `mail.smtp` block from `config.sample.php` to it.
 

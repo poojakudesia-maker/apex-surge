@@ -17,8 +17,12 @@ return [
   // ---- Claude API (console.anthropic.com > API keys) ----
   'claude' => [
     'api_key'    => 'sk-ant-REPLACE',
-    'model'      => 'claude-sonnet-4-5',   // change to any model your key can use
+    'model'      => 'claude-sonnet-4-5',   // AI coach chat; change to any model your key can use
     'max_tokens' => 1024,
+    // AI plans: picking each learner's 10 books, summaries, lessons and SMART goals.
+    // Needs a model with structured outputs. Lower effort ('low') is cheaper and faster.
+    'content_model'  => 'claude-opus-5-5',
+    'content_effort' => 'medium',
     'version'    => '2023-06-01',
   ],
 

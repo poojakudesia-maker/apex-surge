@@ -66,7 +66,7 @@ function renderLogin(msg) {
 }
 
 /* ---------- app shell ---------- */
-var NAV = [['overview','Overview'],['books','Books'],['lessons','Lessons'],['cards','Insight cards'],['questions','Quiz'],['assignment','Assignments'],['submissions','Submissions']];
+var NAV = [['overview','Overview'],['review','AI review'],['books','Books'],['lessons','Lessons'],['cards','Insight cards'],['questions','Quiz'],['assignment','Assignments'],['submissions','Submissions']];
 function renderApp() {
   root().innerHTML =
     '<div class="wrap"><div class="side"><div class="brand"><span class="m">C</span> Admin</div>' +
@@ -84,7 +84,7 @@ function renderApp() {
 function select(s) {
   S.section = s;
   document.querySelectorAll('#nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.s === s); });
-  ({ overview: secOverview, books: secBooks, lessons: secLessons, cards: secCards, questions: secQuestions, assignment: secAssignment, submissions: secSubmissions }[s])();
+  ({ overview: secOverview, review: secReview, books: secBooks, lessons: secLessons, cards: secCards, questions: secQuestions, assignment: secAssignment, submissions: secSubmissions }[s])();
 }
 function head(title, sub) { return '<h1>' + esc(title) + '</h1><p class="sub">' + esc(sub) + '</p>'; }
 function pathSelect() {
@@ -110,6 +110,49 @@ function secOverview() {
   });
 }
 
+/* ---------- AI review ---------- */
+/* AI-picked books and AI lessons go live immediately; check them here. */
+function secReview() {
+  el('main').innerHTML = head('AI review', 'Books, summaries and lessons written by AI. They are live already; approve, fix, hide or regenerate.') + '<div id="list">Loading…</div>';
+  api('admin/review').then(function (d) {
+    var books = d.books || [], lessons = d.lessons || [];
+    var bh = books.map(function (b) {
+      var paras = String(b.summary || '').split(/\n\s*\n/).filter(Boolean);
+      return '<div class="card rv"><div class="rvhead"><div><b>' + esc(b.title) + '</b> <span class="muted">by ' + esc(b.author) + '</span>' +
+        '<div class="muted" style="font-size:12px;margin-top:2px">' + esc(b.category) + ' · on ' + b.learners + ' learner list(s) · ' +
+        (b.is_hidden == 1 ? 'hidden' : (b.gen_status === 'ready' ? 'summary live' : 'summary ' + esc(b.gen_status))) + '</div></div></div>' +
+        (b.blurb ? '<p style="margin:10px 0 6px"><i>' + esc(b.blurb) + '</i></p>' : '') +
+        (paras.length ? '<details><summary>Summary (' + paras.join(' ').split(/\s+/).length + ' words)</summary>' + paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') +
+          (b.insights.length ? '<ol>' + b.insights.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>' : '') + '</details>' : '') +
+        '<div class="rvact"><button class="btn sm" onclick="Admin.review(\'books\',' + b.id + ',\'approve\')">Approve</button>' +
+        '<button class="btn sec sm" onclick="Admin.editBook(' + b.id + ')">Edit</button>' +
+        '<button class="btn sec sm" onclick="Admin.review(\'books\',' + b.id + ',\'regenerate\')">Rewrite summary</button>' +
+        (b.is_hidden == 1 ? '<button class="btn sec sm" onclick="Admin.review(\'books\',' + b.id + ',\'unhide\')">Unhide</button>'
+          : '<button class="btn dng sm" onclick="Admin.review(\'books\',' + b.id + ',\'hide\')">Hide book</button>') + '</div></div>';
+    }).join('');
+    var lh = lessons.map(function (l) {
+      var c = l.content || {};
+      return '<div class="card rv"><b>' + esc(l.title) + '</b> <span class="muted">from ' + esc(l.book_title) + '</span>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px">Mission: ' + esc(l.mission_line || '') + '</div>' +
+        '<details><summary>' + (c.cards || []).length + ' cards · ' + (c.quiz || []).length + ' quiz questions</summary>' +
+        (c.cards || []).map(function (k, i) { return '<p><b>' + (i + 1) + '. ' + esc(k.heading) + '</b><br>' + esc(k.body) + '<br><span class="muted">' + esc(k.callout_title) + ': ' + esc(k.callout_body) + '</span></p>'; }).join('') +
+        (c.quiz || []).map(function (q) { return '<p><b>Q: ' + esc(q.question) + '</b><br>' + (q.options || []).map(function (o, j) { return (j === q.correct_index ? '✓ ' : '· ') + esc(o); }).join('<br>') + '<br><span class="muted">' + esc(q.explanation) + '</span></p>'; }).join('') +
+        '</details><div class="rvact"><button class="btn sm" onclick="Admin.review(\'lessons\',' + l.id + ',\'approve\')">Approve</button>' +
+        '<button class="btn sec sm" onclick="Admin.review(\'lessons\',' + l.id + ',\'regenerate\')">Regenerate for new learners</button></div>' +
+        '<div class="muted" style="font-size:12px;margin-top:8px">Learners who already opened this lesson keep their copy; edit it under Lessons / Insight cards.</div></div>';
+    }).join('');
+    el('list').innerHTML =
+      '<h2>Books <span class="muted">(' + books.length + ')</span></h2>' + (bh || '<p class="muted">Nothing waiting.</p>') +
+      '<h2 style="margin-top:24px">Lessons <span class="muted">(' + lessons.length + ')</span></h2>' + (lh || '<p class="muted">Nothing waiting.</p>');
+  }).catch(function () { el('list').innerHTML = '<p class="err">Could not load the review queue.</p>'; });
+}
+function review(kind, id, action) {
+  if ((action === 'hide' || action === 'regenerate') && !confirm(action === 'hide'
+      ? 'Hide this book from the library and from new plans?' : 'Throw this away and let AI write it again the next time a learner needs it?')) return;
+  api('admin/review/' + kind + '/' + id, { method: 'POST', body: { action: action } }).then(secReview)
+    .catch(function () { alert('That did not work. Try again.'); });
+}
+
 /* ---------- generic list + form ---------- */
 function tableHTML(cols, rows, renderRow) {
   return '<table><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
@@ -129,7 +172,11 @@ function secBooks() {
     el('new').onclick = function () { bookForm(null); };
   });
 }
-function editBook(id) { bookForm(S.books.filter(function (b) { return b.id == id; })[0]); }
+function editBook(id) {
+  var b = S.books.filter(function (x) { return x.id == id; })[0];
+  if (b) return bookForm(b);
+  api('admin/books').then(function (d) { S.books = d.rows || []; bookForm(S.books.filter(function (x) { return x.id == id; })[0]); });
+}
 function bookForm(b) {
   b = b || {};
   var covers = ['cov1','cov2','cov3','cov4','cov5','cov6'];
@@ -370,6 +417,7 @@ function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-')
 window.Admin = {
   editBook: editBook, del: del, editLesson: editLesson, secLessons: secLessons, editCard: editCard, loadCards: loadCards,
   editQuestion: editQuestion, loadQuestions: loadQuestions, viewSub: viewSub, openFile: openFile,
+  review: review,
   closeModal: function () { modal(null); }
 };
 boot();

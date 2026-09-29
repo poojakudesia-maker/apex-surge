@@ -5,6 +5,7 @@ function route_lessons($method, $seg) {
   $user = require_user();
   $lid = (int)($seg[0] ?? 0);
   if (!$lid) fail('not_found', 404);
+  require_lesson_access($lid, $user['id']);
 
   // GET lessons/{id}
   if ($method === 'GET' && count($seg) === 1) {
@@ -20,13 +21,15 @@ function route_lessons($method, $seg) {
     $c->execute([$lid]);
     $lesson['cards'] = $c->fetchAll();
 
-    $a = db()->prepare('SELECT title, instructions, examples, due_days FROM assignments WHERE lesson_id = ?');
+    $a = db()->prepare('SELECT title, instructions, examples, due_days, smart_goal FROM assignments WHERE lesson_id = ?');
     $a->execute([$lid]);
     $lesson['assignment'] = $a->fetch() ?: null;
+    if ($lesson['assignment']) $lesson['assignment']['smart_goal'] = json_decode($lesson['assignment']['smart_goal'] ?? 'null', true);
 
     $qn = db()->prepare('SELECT COUNT(*) FROM quiz_questions WHERE lesson_id = ?');
     $qn->execute([$lid]);
     $lesson['quiz_count'] = (int)$qn->fetchColumn();
+    $lesson['ready'] = count($lesson['cards']) > 0;
 
     // user state
     $us = db()->prepare('SELECT status FROM user_lesson WHERE user_id=? AND lesson_id=?');

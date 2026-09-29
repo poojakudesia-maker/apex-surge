@@ -3,8 +3,30 @@
 
 function route_assignments($method, $seg) {
   $user = require_user();
+
+  // GET assignments  -> every assignment the learner has reached, newest first
+  if ($method === 'GET' && empty($seg)) {
+    $s = db()->prepare(
+      'SELECT l.id AS lesson_id, l.title AS lesson_title, a.title, a.smart_goal, b.title AS book_title,
+              COALESCE(ua.status, \'not_started\') AS status, ua.due_at, ua.submitted_at, ua.feedback
+       FROM user_lesson ul
+       JOIN lessons l ON l.id = ul.lesson_id
+       JOIN assignments a ON a.lesson_id = l.id
+       LEFT JOIN books b ON b.id = l.source_book_id
+       LEFT JOIN user_assignment ua ON ua.lesson_id = l.id AND ua.user_id = ul.user_id
+       WHERE ul.user_id = ? ORDER BY ul.id DESC LIMIT 50');
+    $s->execute([$user['id']]);
+    $rows = array_map(function ($r) {
+      $r['lesson_id'] = (int)$r['lesson_id'];
+      $r['smart_goal'] = json_decode($r['smart_goal'] ?? 'null', true);
+      return $r;
+    }, $s->fetchAll());
+    json_out(['assignments' => $rows]);
+  }
+
   $lid = (int)($seg[0] ?? 0);
   if (!$lid) fail('not_found', 404);
+  require_lesson_access($lid, $user['id']);
 
   // GET assignments/{lessonId}
   if ($method === 'GET' && count($seg) === 1) {
@@ -80,6 +102,7 @@ function user_assignment_state($uid, $lid) {
     'template' => [
       'title' => $tpl['title'], 'instructions' => $tpl['instructions'],
       'examples' => $tpl['examples'], 'due_days' => (int)$tpl['due_days'],
+      'smart_goal' => json_decode($tpl['smart_goal'] ?? 'null', true),
     ],
     'status'       => $ua['status'] ?? 'not_started',
     'reflection'   => $ua['reflection'] ?? '',

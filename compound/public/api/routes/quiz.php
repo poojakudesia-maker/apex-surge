@@ -7,6 +7,7 @@ function route_quiz($method, $seg) {
   // GET quiz/{lessonId}  -> questions + options (no correct flags leaked)
   if ($method === 'GET' && isset($seg[0]) && ctype_digit($seg[0])) {
     $lid = (int)$seg[0];
+    require_lesson_access($lid, $user['id']);
     $qs = db()->prepare('SELECT id, question FROM quiz_questions WHERE lesson_id = ? ORDER BY idx, id');
     $qs->execute([$lid]);
     $questions = $qs->fetchAll();
@@ -24,10 +25,11 @@ function route_quiz($method, $seg) {
     $b = body_json();
     $qid = (int)($b['question_id'] ?? 0);
     $oid = (int)($b['option_id'] ?? 0);
-    $q = db()->prepare('SELECT explanation FROM quiz_questions WHERE id = ?');
+    $q = db()->prepare('SELECT explanation, lesson_id FROM quiz_questions WHERE id = ?');
     $q->execute([$qid]);
     $qq = $q->fetch();
     if (!$qq) fail('not_found', 404);
+    require_lesson_access($qq['lesson_id'], $user['id']);
     $c = db()->prepare('SELECT id, is_correct FROM quiz_options WHERE question_id = ?');
     $c->execute([$qid]);
     $correctId = null; $picked = false; $isCorrect = false;
@@ -43,6 +45,7 @@ function route_quiz($method, $seg) {
   // POST quiz/{lessonId}/submit  {answers: {question_id: option_id}}
   if ($method === 'POST' && isset($seg[0]) && ctype_digit($seg[0]) && ($seg[1] ?? '') === 'submit') {
     $lid = (int)$seg[0];
+    require_lesson_access($lid, $user['id']);
     $b = body_json();
     $answers = is_array($b['answers'] ?? null) ? $b['answers'] : [];
     $st = db()->prepare('SELECT id FROM quiz_questions WHERE lesson_id = ?');

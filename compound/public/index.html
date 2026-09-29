@@ -163,17 +163,13 @@
     </div>
   </section>
 
-  <!-- BUILDING -->
+  <!-- BUILDING (filled by app.js with real progress) -->
   <section class="screen" id="s-building">
     <div class="wrap">
-      <div class="spinner"></div>
-      <h2>Building your path…</h2>
-      <div class="buildlog" id="buildlog">
-        <div class="row"><span class="b">✓</span> Reading your goals</div>
-        <div class="row"><span class="b">✓</span> Matching the right books</div>
-        <div class="row"><span class="b">✓</span> Sequencing your lessons</div>
-        <div class="row"><span class="b">✓</span> Writing your first mission</div>
-      </div>
+      <div class="buildart" id="buildart" aria-hidden="true"><div class="spinner"></div></div>
+      <h2 id="buildTitle">Building your plan…</h2>
+      <p class="muted" id="buildSub" style="margin:-4px 0 14px;font-size:13.5px"></p>
+      <div class="buildlog" id="buildlog"></div>
     </div>
   </section>
 

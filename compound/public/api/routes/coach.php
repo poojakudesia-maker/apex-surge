@@ -24,10 +24,15 @@ function route_coach($method, $seg) {
     $prof = $o->fetch() ?: [];
     $focus = $prof ? implode(', ', json_decode($prof['focus_areas'] ?? '[]', true) ?: []) : '';
 
+    $mb = db()->prepare('SELECT b.title FROM user_books ub JOIN books b ON b.id = ub.book_id WHERE ub.user_id = ? ORDER BY ub.rank_no LIMIT 10');
+    $mb->execute([$user['id']]);
+    $myBooks = $mb->fetchAll(PDO::FETCH_COLUMN);
+    $bookList = $myBooks ? implode(', ', $myBooks) : 'Never Split the Difference, Crucial Conversations, Made to Stick and Atomic Habits';
+
     $system =
       "You are the Compound Coach, a warm, sharp communication and growth coach inside a self-improvement app. " .
-      "You help the user apply ideas from books like Never Split the Difference, Crucial Conversations, Made to Stick and Atomic Habits to real situations. " .
-      "You can role-play difficult conversations (play the other person realistically, then break character to coach). " .
+      "You help the user apply ideas from the books on their list ($bookList) to real situations. " .
+      "You can role-play difficult conversations: play the other person (their manager, a colleague, a client) realistically and stay in character until they ask to stop or the scene ends, then step out and give specific feedback on what worked and one thing to try differently. " .
       "Keep replies short, concrete and encouraging — 2 to 5 sentences unless they ask for more. Give one clear next step. Never invent facts about the user.\n" .
       "User context — goal: " . ($prof['goal'] ?? 'Communication') .
       "; role: " . ($prof['role'] ?? 'unspecified') .

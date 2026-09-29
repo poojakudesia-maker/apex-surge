@@ -20,6 +20,26 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function
 function toast(msg) { var t = el('toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2600); }
 
+function reducedMotion() { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function haptic(ms) { try { if (navigator.vibrate) navigator.vibrate(ms || 12); } catch (e) {} }
+/* confetti burst for wins (lesson done, great quiz, plan ready) */
+function celebrate() {
+  if (reducedMotion()) return;
+  var box = document.createElement('div'); box.className = 'confetti'; box.setAttribute('aria-hidden', 'true');
+  var colors = ['var(--brand)', 'var(--grow)', 'var(--amber)', '#FF7AA2', '#46B5FF'];
+  for (var i = 0; i < 28; i++) {
+    var c = document.createElement('i');
+    c.style.left = (Math.random() * 100) + '%';
+    c.style.background = colors[i % colors.length];
+    c.style.setProperty('--dx', (Math.random() * 160 - 80) + 'px');
+    c.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
+    c.style.animationDelay = (Math.random() * 0.25) + 's';
+    if (i % 3 === 0) c.style.borderRadius = '50%';
+    box.appendChild(c);
+  }
+  document.body.appendChild(box);
+  setTimeout(function () { box.remove(); }, 2200);
+}
 function api(path, opts) {
   opts = opts || {};
   var headers = opts.headers || {};
@@ -175,19 +195,94 @@ function verifyCode() {
 function submitOnboarding() {
   api('onboarding', { method: 'POST', body: state.onboarding }).then(function (d) {
     if (d.path) state.pathId = d.path.id;
-    runBuilding();
-  }).catch(function () { toast('Could not save — retrying home.'); loadHome().then(function () { show('s-home', { replace: true }); }); });
+    if (d.ai) runBuildingAI(); else runBuilding();
+  }).catch(function () { toast('Could not save — retrying home.'); goHome(); });
 }
+function goHome() { return loadHome().then(function () { show('s-home', { replace: true }); }); }
+
+/* build screen rows: each step shows real progress */
+function buildRows(labels) {
+  el('buildlog').innerHTML = labels.map(function (t, i) {
+    return '<div class="row" id="brow' + i + '"><span class="b"><i></i></span><span class="t">' + esc(t) + '</span></div>'; }).join('');
+}
+function setRow(i, st, text) {
+  var r = el('brow' + i); if (!r) return;
+  r.className = 'row ' + st;
+  r.querySelector('.b').innerHTML = st === 'done' ? '✓' : st === 'skip' ? '→' : '<i></i>';
+  if (text) r.querySelector('.t').textContent = text;
+}
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 function runBuilding() {
-  show('s-building', { replace: true });
-  histStack = ['s-home'];
-  var rows = document.querySelectorAll('#buildlog .row'); rows.forEach(function (r) { r.classList.remove('on'); });
-  var i = 0;
-  var iv = setInterval(function () {
-    if (i < rows.length) { rows[i].classList.add('on'); i++; }
-    else { clearInterval(iv); loadHome().then(function () { show('s-home', { replace: true }); }); }
-  }, 480);
+  show('s-building', { replace: true }); histStack = ['s-home'];
+  el('buildTitle').textContent = 'Opening your path…'; el('buildSub').textContent = '';
+  buildRows(['Saving your goals', 'Loading your lessons']);
+  setRow(0, 'done');
+  setRow(1, 'on');
+  goHome();
+}
+
+function runBuildingAI() {
+  show('s-building', { replace: true }); histStack = ['s-home'];
+  el('buildTitle').textContent = 'Building your plan…';
+  el('buildSub').textContent = 'This takes about a minute. Your coach is reading up.';
+  el('buildart').innerHTML = '<div class="spinner"></div>';
+  buildRows(['Reading your goals', 'Choosing 10 books for you', 'Writing your first summaries', 'Preparing lesson 1']);
+  setRow(0, 'done'); setRow(1, 'on');
+  var books = [];
+  api('plan/build', { method: 'POST', body: {} }).then(function (d) {
+    books = d.books || [];
+    setRow(1, 'done', books.length + ' books chosen for you');
+    el('buildart').innerHTML = '<div class="stack">' + books.slice(0, 10).map(function (b, i) {
+      return '<div class="mini bookcover ' + esc(b.cover_class) + '" style="--i:' + i + '" title="' + esc(b.title) + '"><div class="ttl">' + esc(b.title) + '</div></div>'; }).join('') + '</div>';
+    el('buildSub').textContent = books[0] ? 'Starting with “' + books[0].title + '”.' : '';
+    setRow(2, 'on');
+    var first = books.filter(function (b) { return b.gen_status !== 'ready'; }).slice(0, 2), n = 0;
+    return first.reduce(function (pr, b) {
+      return pr.then(function () {
+        setRow(2, 'on', 'Writing summaries · ' + (++n) + ' of ' + first.length);
+        return api('plan/books/' + b.id + '/summary', { method: 'POST', body: {} }).catch(function () {});
+      });
+    }, Promise.resolve()).then(function () {
+      setRow(2, 'done', 'Summaries ready to read or listen');
+      setRow(3, 'on');
+      return api('home');
+    }).then(function (h) {
+      var cl = h.current_lesson;
+      if (!cl || cl.ready) return;
+      return api('plan/lessons/' + cl.id + '/prepare', { method: 'POST', body: {} });
+    }).then(function () { setRow(3, 'done', 'Lesson 1 is ready'); }, function () {
+      setRow(3, 'skip', 'Lesson 1 will finish when you open it');
+    }).then(function () {
+      el('buildTitle').textContent = 'Your plan is ready'; el('buildSub').textContent = '';
+      celebrate(); return wait(900);
+    }).then(goHome).then(warmPlan);
+  }).catch(function (e) {
+    setRow(1, 'skip', 'Using our curated path for now');
+    if (!(e && e.status === 409)) toast('Couldn’t build your AI plan right now. We’ll use a curated path.');
+    wait(900).then(goHome);
+  });
+}
+
+/* Quietly prepare what the learner will need next: upcoming lessons, then their book summaries. */
+var warm = { running: false, done: {} };
+function warmPlan() {
+  var h = state.home; if (warm.running || !h || !h.personal || !navigator.onLine) return;
+  var jobs = [];
+  [h.current_lesson, h.next_lesson].forEach(function (l) {
+    if (l && !l.ready && !warm.done['l' + l.id]) jobs.push({ k: 'l' + l.id, path: 'plan/lessons/' + l.id + '/prepare' });
+  });
+  (h.books || []).forEach(function (b) {
+    if (b.gen_status && b.gen_status !== 'ready' && !warm.done['b' + b.id]) jobs.push({ k: 'b' + b.id, path: 'plan/books/' + b.id + '/summary' });
+  });
+  if (!jobs.length) return;
+  warm.running = true;
+  jobs.reduce(function (pr, j) {
+    return pr.then(function () {
+      warm.done[j.k] = true;
+      return api(j.path, { method: 'POST', body: {} }).catch(function () {});
+    });
+  }, Promise.resolve()).then(function () { warm.running = false; });
 }
 
 /* ---------- tab bar ---------- */
@@ -229,13 +324,14 @@ function loadHome() {
       '<div class="card pathcard" onclick="App.openPath()" style="cursor:pointer"><div class="pathrow">' +
       '<div class="ring"><svg width="52" height="52" viewBox="0 0 52 52" style="transform:rotate(-90deg)">' +
       '<circle cx="26" cy="26" r="22" fill="none" stroke="var(--surface-2)" stroke-width="6"/>' +
-      '<circle cx="26" cy="26" r="22" fill="none" stroke="var(--brand)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '"/>' +
+      '<circle cx="26" cy="26" r="22" fill="none" stroke="var(--brand)" stroke-width="6" stroke-linecap="round" style="--circ:' + circ + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '"/>' +
       '</svg><div class="val">' + pct + '%</div></div>' +
       '<div style="flex:1"><div class="t">' + esc(p.title) + '</div><div class="d">' + doneN + ' of ' + totalN + ' lessons</div>' +
       '<div class="track">' + track + '</div></div></div></div>'
     ) : '';
     var books = (d.books || []).map(function (b) {
       return '<div class="bookcard" onclick="App.openBook(' + b.id + ')"><div class="bookcover ' + esc(b.cover_class) + '">' +
+        (b.rank_no ? '<span class="rank">#' + b.rank_no + '</span>' : '') +
         '<div class="k">' + esc(b.category) + '</div><div><div class="ttl">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div></div></div>' +
         '<div class="bookmeta"><div class="t">' + esc(b.author) + '</div><div class="d">🎧 ' + b.minutes + ' min</div></div></div>';
     }).join('');
@@ -247,10 +343,15 @@ function loadHome() {
           (s.streak ? 'Day ' + s.streak + ' of your streak. Keep it going.' : 'Let\'s start your streak today.') +
         '</div></div><div class="streakpill">🔥 ' + (s.streak || 0) + '</div></div>' +
         '<div class="pad" style="padding-top:16px">' + mission + pathCard +
-          '<h2 class="sec">From your library</h2></div>' +
+          '<h2 class="sec">' + (d.personal ? 'Your ' + (d.books || []).length + ' books' : 'From your library') +
+          ' <span class="more" onclick="App.tab(\'library\')">See all</span></h2></div>' +
         '<div class="hscroll">' + books + '</div><div style="height:16px"></div>' +
       '</div>' + tabbar('home');
-  }).catch(function () { el('s-home').innerHTML = '<div class="loading">Could not load. Pull to retry.</div>' + tabbar('home'); });
+    setTimeout(warmPlan, 1500);
+  }).catch(function (e) {
+    if (e && e.status === 401) return sessionExpired();
+    el('s-home').innerHTML = '<div class="loading">Could not load. Check your connection and try again.</div>' + tabbar('home');
+  });
 }
 
 /* ---------- PATH ---------- */
@@ -281,10 +382,36 @@ function openPath() {
 /* ---------- READER ---------- */
 function openLesson(id) {
   api('lessons/' + id).then(function (d) {
+    if (!d.lesson.ready) return craftLesson(id, d.lesson);
     state.reader = { lesson: d.lesson, idx: 0, total: d.lesson.cards.length };
     renderReader();
-    show('s-reader');
-  }).catch(function () { toast('Could not open lesson.'); });
+    show('s-reader', { replace: document.querySelector('#s-reader.active') !== null });
+  }).catch(function (e) {
+    if (e && e.status === 401) return sessionExpired();
+    toast(e && e.status ? 'Could not open this lesson.' : 'You\u2019re offline. Reconnect to open this lesson.');
+  });
+}
+/* First visit to an AI lesson: show a crafting state while cards, quiz and SMART goal are written. */
+function craftLesson(id, L) {
+  var lines = ['Reading ' + (L.source_title || 'the book') + '\u2026', 'Picking the most useful idea\u2026', 'Writing your insight cards\u2026',
+    'Setting quiz questions\u2026', 'Tailoring a SMART goal to you\u2026'];
+  el('s-reader').innerHTML =
+    '<div class="rdrtop"><div class="x" onclick="App.tab(\'home\')">\u2715</div><div style="flex:1"></div></div>' +
+    '<div class="craft"><div class="craftart"><div class="sheet s1"></div><div class="sheet s2"></div><div class="sheet s3"><div class="pen">\u270E</div></div></div>' +
+    '<h2>Crafting your lesson</h2><p class="muted" id="craftLine">' + esc(lines[0]) + '</p>' +
+    '<div class="skel"><i></i><i></i><i style="width:70%"></i></div></div>';
+  show('s-reader');
+  var k = 0, iv = setInterval(function () { var c = el('craftLine'); if (!c) return clearInterval(iv); k = Math.min(k + 1, lines.length - 1); c.textContent = lines[k]; }, 3500);
+  api('plan/lessons/' + id + '/prepare', { method: 'POST', body: {} }).then(function () {
+    clearInterval(iv); openLesson(id);
+  }).catch(function (e) {
+    clearInterval(iv);
+    if (e && e.status === 401) return sessionExpired();
+    el('s-reader').querySelector('.craft').innerHTML =
+      '<div class="craftart"><div class="sheet s3"></div></div><h2>That took too long</h2>' +
+      '<p class="muted">Your lesson isn\u2019t ready yet. Give it another try.</p>' +
+      '<button class="btn" style="max-width:240px" onclick="App.openLesson(' + id + ')">Try again</button>';
+  });
 }
 function renderReader() {
   var r = state.reader, L = r.lesson, cards = L.cards, n = cards.length;
@@ -399,11 +526,27 @@ function narrate(text, ui) {
     audio.synth.speak(u);
   });
 }
-function setPlayIcon(on) { ['playbtn', 'bookplay'].forEach(function (id) { var b = el(id); if (b) b.textContent = on ? '\u275A\u275A' : '\u25B6'; }); }
+function setPlayIcon(on) {
+  document.querySelectorAll('.playbtn').forEach(function (b) { b.textContent = '\u25B6'; b.classList.remove('live'); });
+  var b = audio.ui && el(audio.ui.btn); if (b && on) { b.textContent = '\u275A\u275A'; b.classList.add('live'); }
+}
+/* A small player bar; ids are prefixed so several can live on one screen. */
+function playerBar(prefix, secs) {
+  return '<div class="audiobar"><button class="playbtn" id="' + prefix + 'play" onclick="App.playSection(\'' + prefix + '\')">\u25B6</button>' +
+    '<div class="wave"><div class="track2"><b id="' + prefix + 'fill"></b></div>' +
+    '<div class="time"><span id="' + prefix + 'cur">0:00</span><span id="' + prefix + 'dur">' + fmtTime(secs || 0) + '</span></div></div>' +
+    '<div class="spd" onclick="App.cycleSpeed()">' + audio.rate + '\u00D7</div></div>';
+}
+function listenSecs(text) { return String(text || '').split(/\s+/).length / (2.6 * VOICE_BASE_RATE); }
+var sections = {};
+function playSection(prefix) {
+  if (audio.playing && audio.ui && audio.ui.btn === prefix + 'play') { stopAudio(); return; }
+  startAudio(sections[prefix], { btn: prefix + 'play', fill: prefix + 'fill', cur: prefix + 'cur', dur: prefix + 'dur' });
+}
 function startAudio(text, ui) {
   if (!ttsSupported()) { toast('Listening isn\u2019t supported in this browser. Try Chrome, Edge or Safari.'); return; }
   audio.text = text || currentCardText();
-  audio.ui = ui || { fill: 'audiofill', cur: 'tcur', dur: 'tdur' };
+  audio.ui = ui || { btn: 'playbtn', fill: 'audiofill', cur: 'tcur', dur: 'tdur' };
   audio.playing = true; setPlayIcon(true);
   narrate(audio.text, audio.ui);
 }
@@ -456,7 +599,7 @@ function quizAnswer(oid) {
       else if (id === oid) { o.classList.add('wrong'); o.querySelector('.mk').textContent = '✕'; }
       else o.classList.add('dim');
     });
-    if (r.correct) q.score++;
+    if (r.correct) { q.score++; haptic(12); } else haptic([20, 40, 20]);
     el('qexp').innerHTML = '<div class="qexp ' + (r.correct ? 'good' : 'bad') + '"><div class="h">' +
       (r.correct ? 'Correct' : 'Not quite') + '</div>' + esc(r.explanation || '') + '</div>';
     var nb = el('quiznext'); nb.disabled = false;
@@ -479,16 +622,38 @@ function finishQuiz() {
     el('quizprog').innerHTML = q.questions.map(function () { return '<i class="done"><b></b></i>'; }).join('');
     el('quizbody').innerHTML = '<div class="qresult"><div class="score">' + q.score + '<small>/' + q.questions.length +
       '</small></div><div class="band">' + band + '</div><p>' + msg + '</p></div>';
+    if (pct >= 75) celebrate();
     var nb = el('quiznext'); nb.disabled = false; nb.textContent = 'Continue to assignment →';
     nb.onclick = function () { openApply(q.lessonId); };
   });
 }
 
 /* ---------- APPLY / ASSIGNMENT ---------- */
+var SMART = [['specific', 'S', 'Specific'], ['measurable', 'M', 'Measurable'], ['achievable', 'A', 'Achievable'], ['relevant', 'R', 'Relevant'], ['time_bound', 'T', 'Time-bound']];
+function smartCards(g) {
+  return '<div class="smartrow stagger">' + SMART.map(function (k) {
+    return '<div class="smartcard"><div class="letter">' + k[1] + '</div><div class="lbl">' + k[2] + '</div><div class="txt">' + esc(g[k[0]] || '') + '</div></div>'; }).join('') + '</div>';
+}
+function recapCards(L) {
+  return '<div class="recap stagger">' + (L.cards || []).map(function (c, i) {
+    return '<details class="recapcard"' + (i === 0 ? ' open' : '') + '><summary><span class="n">' + (i + 1) + '</span>' + esc(c.heading) + '</summary>' +
+      (c.body ? '<p>' + esc(c.body) + '</p>' : '') +
+      (c.callout_body ? '<div class="callout"><b>' + esc(c.callout_title || 'Try this') + ':</b> ' + esc(c.callout_body) + '</div>' : '') + '</details>'; }).join('') + '</div>';
+}
 function openApply(lessonId) {
   state.proofs = [];
-  api('assignments/' + lessonId).then(function (d) {
-    var a = d.assignment, t = a.template;
+  Promise.all([api('assignments/' + lessonId), api('lessons/' + lessonId)]).then(function (res) {
+    var d = res[0], L = res[1].lesson;
+    var a = d.assignment, t = a.template, g = t.smart_goal;
+    state.currentAssignment = t;
+    sections.smart = g ? 'Your SMART goal. ' + SMART.map(function (k) { return k[2] + ': ' + (g[k[0]] || ''); }).join(' ') : '';
+    sections.recap = (L.cards || []).map(function (c) { return [c.heading, c.body, c.callout_body].filter(Boolean).join('. '); }).join(' ');
+    var done = a.status === 'submitted' || a.status === 'reviewed';
+    var statusCard = done
+      ? '<div class="card statuscard"><div class="tag grow">' + (a.status === 'reviewed' ? 'Reviewed' : 'Submitted') + '</div>' +
+        '<div style="font-weight:700;margin-top:8px">' + (a.status === 'reviewed' ? 'Your coach reviewed this' : 'Proof received. Pending review.') + '</div>' +
+        (a.feedback ? '<div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.5">' + esc(a.feedback) + '</div>' : '') + '</div>'
+      : '';
     var due = new Date(Date.now() + (t.due_days || 2) * 864e5);
     var dueStr = due.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
     el('s-apply').innerHTML =
@@ -496,10 +661,13 @@ function openApply(lessonId) {
       '<span class="tag" style="background:var(--amber);color:#fff;margin-bottom:12px">⏳ Due in ' + (t.due_days || 2) + ' days · by ' + dueStr + '</span>' +
       '<h2>' + esc(t.title) + '</h2><p>Take this into a real conversation, then send proof. A photo or a voice note, whatever\'s easiest.</p></div>' +
       '<div class="pad" style="padding-top:14px">' +
+        statusCard +
+        (g ? '<h2 class="sec" style="margin:4px 0 8px">Your SMART goal</h2>' + playerBar('smart', listenSecs(sections.smart)) + smartCards(g) : '') +
         '<div class="card" style="border-color:var(--brand);border-width:1.5px"><div class="tag">Your task</div>' +
         '<div style="font-weight:700;font-size:15.5px;margin:10px 0 6px;line-height:1.35">' + esc(t.instructions) + '</div>' +
         (t.examples ? '<div class="muted" style="font-size:13px;line-height:1.5">' + esc(t.examples) + '</div>' : '') + '</div>' +
-        '<h2 class="sec" style="margin-bottom:8px">Submit your proof</h2><div id="uploads"></div>' +
+        ((L.cards || []).length ? '<h2 class="sec" style="margin-bottom:8px">Lesson recap</h2>' + playerBar('recap', listenSecs(sections.recap)) + recapCards(L) : '') +
+        '<h2 class="sec" style="margin-bottom:8px">' + (done ? 'Add more proof' : 'Submit your proof') + '</h2><div id="uploads"></div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:2px">' +
           '<button class="btn ghost" style="flex-direction:column;gap:6px;padding:18px" onclick="App.pickPhoto()"><span style="font-size:24px">📷</span><span style="font-size:13px">Add photo</span></button>' +
           '<button class="btn ghost" id="recBtn" style="flex-direction:column;gap:6px;padding:18px" onclick="App.toggleRecord()"><span style="font-size:24px">🎙️</span><span style="font-size:13px">Record audio</span></button>' +
@@ -510,14 +678,23 @@ function openApply(lessonId) {
         '<div class="card" style="margin-top:14px;background:var(--brand-wash);border-color:transparent"><div class="tag">Practice first?</div>' +
         '<div style="font-weight:700;font-size:15px;margin:8px 0 4px">Rehearse it with your AI coach</div>' +
         '<div class="muted" style="font-size:13px;line-height:1.45">Role-play the exact conversation before you do it for real.</div>' +
-        '<button class="btn sm" style="margin-top:12px;background:var(--brand)" onclick="App.tab(\'coach\')">Practice with Coach →</button></div>' +
+        '<button class="btn sm" style="margin-top:12px;background:var(--brand)" onclick="App.practice()">Practice with Coach →</button></div>' +
       '</div></div>' +
       '<div class="footer"><button class="btn" id="submitAssignBtn" onclick="App.submitAssignment(' + lessonId + ')">Submit assignment</button>' +
       '<button class="btn ghost" style="margin-top:10px" onclick="App.remindLater(' + lessonId + ')">Remind me later — I have ' + (t.due_days || 2) + ' days</button></div>';
     el('photoInput').addEventListener('change', function (e) { addFileProof(e.target.files[0], 'photo'); });
     el('audioInput').addEventListener('change', function (e) { addFileProof(e.target.files[0], 'audio'); });
     renderProofs(); show('s-apply');
-  }).catch(function () { toast('Could not load assignment.'); });
+  }).catch(function (e) {
+    if (e && e.status === 401) return sessionExpired();
+    toast('Could not load this assignment.');
+  });
+}
+function practice() {
+  var t = state.currentAssignment || {};
+  state.coachPrefill = 'Let\'s rehearse my assignment before I do it for real: "' + (t.title || '') + '". ' + (t.instructions || '') +
+    ' Play the other person (my manager or a colleague, whoever fits best), stay in character, then step out and coach me.';
+  tab('coach');
 }
 function pickPhoto() { el('photoInput').click(); }
 function addFileProof(file, kind) { if (!file) return; state.proofs.push({ file: file, kind: kind, name: file.name || (kind + '.dat') }); renderProofs(); }
@@ -558,7 +735,7 @@ function submitAssignment(lessonId) {
   fd.append('reflection', (el('reflect') && el('reflect').value) || '');
   state.proofs.forEach(function (p) { fd.append('files[]', p.file, p.name); });
   api('assignments/' + lessonId + '/submit', { method: 'POST', body: fd }).then(function () {
-    completeLesson(lessonId, 'submitted');
+    haptic(20); completeLesson(lessonId, 'submitted');
   }).catch(function () { btn.disabled = false; btn.textContent = 'Submit assignment'; toast('Upload failed — try again.'); });
 }
 function remindLater(lessonId) {
@@ -583,6 +760,7 @@ function renderComplete(assignState) {
     '<div class="card" style="margin-top:18px;width:100%;max-width:320px;display:flex;align-items:center;gap:12px;text-align:left">' + pending + '</div></div>' +
     '<div class="footer"><button class="btn" onclick="App.tab(\'home\')">Back to today</button></div>';
   histStack = ['s-home', 's-complete']; show('s-complete', { replace: true });
+  celebrate();
 }
 
 /* ---------- LIBRARY ---------- */
@@ -596,7 +774,9 @@ function loadLibrary() {
       '<div class="apphead"><div style="flex:1"><div class="eyebrow">Explore</div><h1>Library</h1></div></div>' +
       '<label class="searchbar">\u26B2 <input id="libSearch" type="search" placeholder="Search books, authors, topics\u2026" autocomplete="off" value="' + esc(libQuery) + '"></label>' +
       '<div class="goalchips" id="libCats" style="padding-top:8px">' + chips + '</div>' +
-      '<div class="scroll"><div class="libgrid" id="libGrid"></div></div>' + tabbar('library');
+      '<div class="scroll">' + pickedRow(d.mine || []) +
+      '<h2 class="sec" style="margin:14px 20px 10px">' + (d.mine && d.mine.length ? 'All books' : 'Books') + '</h2>' +
+      '<div class="libgrid" id="libGrid"></div></div>' + tabbar('library');
     el('libSearch').addEventListener('input', function () { libQuery = this.value; renderLibGrid(); });
     el('libCats').addEventListener('click', function (e) { var c = e.target.closest('[data-cat]'); if (c) setCat(c.dataset.cat); });
     renderLibGrid();
@@ -604,6 +784,16 @@ function loadLibrary() {
     if (e && e.status === 401) return sessionExpired();
     el('s-library').innerHTML = '<div class="loading">Could not load the library. Check your connection and try again.</div>' + tabbar('library');
   });
+}
+function pickedRow(mine) {
+  if (!mine.length) return '';
+  return '<h2 class="sec" style="margin:14px 20px 4px">Picked for you</h2>' +
+    '<p class="muted" style="margin:0 20px 10px;font-size:12.5px">Chosen by AI for your goal, in the order to read them.</p>' +
+    '<div class="hscroll stagger">' + mine.map(function (b) {
+      return '<div class="bookcard picked" onclick="App.openBook(' + b.id + ')"><div class="bookcover ' + esc(b.cover_class) + '">' +
+        '<span class="rank">#' + b.rank_no + '</span><div class="k">' + esc(b.category) + '</div><div><div class="ttl">' + esc(b.title) +
+        '</div><div class="au">' + esc(b.author) + '</div></div></div>' +
+        '<div class="why">' + esc(b.reason || b.blurb || '') + '</div></div>'; }).join('') + '</div>';
 }
 function renderLibGrid() {
   var q = libQuery.trim().toLowerCase();
@@ -618,45 +808,66 @@ function renderLibGrid() {
 function setCat(c) { libCat = c; loadLibrary().then(function () { show('s-library', { replace: true }); }); }
 
 /* ---------- BOOK ---------- */
-function openBook(id) {
+function openBook(id, replace) {
   api('books/' + id).then(function (d) {
     var b = d.book;
     var paras = String(b.summary || '').split(/\n\s*\n/).map(function (p) { return p.trim(); }).filter(Boolean);
     var insights = (b.insights || []).map(function (x, i) {
       return '<div class="keyrow"><div class="n">' + (i + 1) + '</div><div class="t">' + esc(x.text) + '</div></div>'; }).join('');
-    var listenText = [b.title + ', by ' + b.author + '.'].concat(paras.length ? paras : [b.blurb || '']).join(' ');
-    state.bookListen = listenText;
-    var secs = listenText.split(/\s+/).length / (2.6 * VOICE_BASE_RATE), mins = Math.max(1, Math.ceil(secs / 60));
+    sections.book = [b.title + ', by ' + b.author + '.'].concat(paras.length ? paras : [b.blurb || '']).join(' ');
+    var secs = listenSecs(sections.book), mins = Math.max(1, Math.ceil(secs / 60));
+    var writing = !b.summary_ready;
     el('s-book').innerHTML =
       '<div class="obtop" style="padding-bottom:0"><div class="backb" onclick="App.back()">\u2190</div><div style="flex:1"></div></div>' +
       '<div class="scroll"><div class="bd-hero"><div class="bookcover ' + esc(b.cover_class) + '" style="flex-direction:column">' +
         '<div class="k">' + esc(b.category) + '</div><div><div class="ttl">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div></div></div>' +
         '<div style="flex:1"><div class="t">' + esc(b.title) + '</div><div class="au">' + esc(b.author) + '</div>' +
-        '<div class="chips"><span class="tag">\uD83C\uDFA7 ' + mins + ' min listen</span><span class="tag grow">' + b.insight_count + ' insights</span></div></div></div>' +
+        '<div class="chips">' + (writing ? '' : '<span class="tag">\uD83C\uDFA7 ' + mins + ' min listen</span>') +
+        (b.insight_count ? '<span class="tag grow">' + b.insight_count + ' insights</span>' : '') +
+        (b.rank_no ? '<span class="tag">#' + b.rank_no + ' on your list</span>' : '') + '</div></div></div>' +
       '<div class="pad" style="padding-top:14px">' +
+        (b.reason ? '<div class="whycard"><div class="h">Why it\u2019s on your list</div>' + esc(b.reason) + '</div>' : '') +
         (b.blurb ? '<p class="bookblurb">' + esc(b.blurb) + '</p>' : '') +
-        '<div class="audiobar"><button class="playbtn" id="bookplay" onclick="App.toggleBookAudio()">\u25B6</button>' +
-          '<div class="wave"><div class="track2"><b id="bookfill"></b></div>' +
-          '<div class="time"><span id="bookcur">0:00</span><span id="bookdur">' + fmtTime(secs) + '</span></div></div>' +
-          '<div class="spd" onclick="App.cycleSpeed()">' + audio.rate + '\u00D7</div></div>' +
-        (paras.length ? '<h2 class="sec" style="margin-bottom:6px">Summary</h2><div class="booksummary">' +
-          paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '</div>' : '') +
-        (insights ? '<h2 class="sec" style="margin-bottom:6px">Key insights</h2>' + insights : '') + '</div></div>' +
+        (writing
+          ? '<h2 class="sec" style="margin-bottom:6px">Summary</h2><div class="writing"><span class="dotpulse"><i></i><i></i><i></i></span>Writing your summary\u2026</div>' +
+            '<div class="skel"><i></i><i></i><i></i><i style="width:60%"></i></div>'
+          : playerBar('book', secs) +
+            (paras.length ? '<h2 class="sec" style="margin-bottom:6px">Summary</h2><div class="booksummary">' +
+              paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '</div>' : '') +
+            (insights ? '<h2 class="sec" style="margin-bottom:6px">Key insights</h2><div class="stagger">' + insights + '</div>' : '')) +
+      '</div></div>' +
       '<div class="footer"><button class="btn" onclick="App.openPath()">Explore in your path \u2192</button></div>';
-    show('s-book');
+    show('s-book', { replace: !!replace });
+    if (writing) {
+      api('plan/books/' + id + '/summary', { method: 'POST', body: {} }).then(function () {
+        if (document.querySelector('#s-book.active')) openBook(id, true);
+      }).catch(function () {
+        var w = document.querySelector('#s-book .writing');
+        if (w) w.innerHTML = 'The summary isn\u2019t ready yet. <button class="linkbtn" onclick="App.openBook(' + id + ', true)">Try again</button>';
+        var sk = document.querySelector('#s-book .skel'); if (sk) sk.remove();
+      });
+    }
   }).catch(function (e) {
     if (e && e.status === 401) return sessionExpired();
     toast(e && e.status ? 'Could not load this book.' : 'You\u2019re offline. Reconnect to open this book.');
   });
 }
-function toggleBookAudio() {
-  if (audio.playing) { stopAudio(); return; }
-  startAudio(state.bookListen, { fill: 'bookfill', cur: 'bookcur', dur: 'bookdur' });
-}
 
 /* ---------- PROGRESS ---------- */
+function assignmentsList(rows) {
+  if (!rows.length) return '<div class="muted" style="font-size:13.5px;padding:4px 2px">Finish a lesson to get your first field assignment.</div>';
+  var label = { not_started: 'To do', pending: 'To do', submitted: 'Submitted', reviewed: 'Reviewed' };
+  return '<div class="stagger">' + rows.map(function (r) {
+    var due = r.due_at && r.status === 'pending' ? ' \u00B7 due ' + new Date(r.due_at.replace(' ', 'T')).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+    return '<div class="card asgrow" onclick="App.openApply(' + r.lesson_id + ')"><div class="asgtop"><span class="tag ' +
+      (r.status === 'submitted' || r.status === 'reviewed' ? 'grow' : '') + '">' + (label[r.status] || 'To do') + due + '</span>' +
+      '<span class="chev">\u203A</span></div><div class="t">' + esc(r.title) + '</div>' +
+      (r.smart_goal ? '<div class="goal"><b>S</b>' + esc(r.smart_goal.specific || '') + '</div>' : '') +
+      '<div class="muted" style="font-size:12px;margin-top:4px">' + esc(r.book_title || r.lesson_title || '') + '</div></div>'; }).join('') + '</div>';
+}
 function loadProgress() {
-  return api('progress').then(function (d) {
+  return Promise.all([api('progress'), api('assignments').catch(function () { return { assignments: [] }; })]).then(function (res) {
+    var d = res[0], asg = res[1].assignments || [];
     var s = d.stats, w = d.weekly, pb = d.playbook || [];
     var gs = s.growth_score, circ = 465, off = circ - circ * Math.min(gs, 100) / 100;
     var max = Math.max.apply(null, w.values.concat([1]));
@@ -682,6 +893,7 @@ function loadProgress() {
         '<div class="s"><div class="n">' + s.actions_done + '</div><div class="l">Actions done</div></div></div>' +
       '<div class="pad"><div class="card"><div style="font-weight:700;font-size:14.5px">Last 7 days</div>' +
         '<div class="bars">' + bars + '</div></div>' +
+        '<h2 class="sec">Your assignments</h2>' + assignmentsList(asg) +
         '<h2 class="sec">Your Playbook</h2>' + play + '</div></div>' + tabbar('progress');
   }).catch(function () { el('s-progress').innerHTML = '<div class="loading">Could not load progress.</div>' + tabbar('progress'); });
 }
@@ -695,12 +907,14 @@ function loadCoach() {
     el('s-coach').innerHTML =
       '<div class="apphead"><div class="avatar" style="background:var(--brand);color:#fff">✦</div><div style="flex:1"><div class="eyebrow">Always on</div><h1>AI Coach</h1></div></div>' +
       '<div class="scroll" id="coachScroll"><div class="chat" id="chat">' + chat + '</div>' +
-      '<div class="quickchips"><div class="q" onclick="App.quickCoach(\'Role-play a tough conversation with me\')">🎭 Role-play</div>' +
-      '<div class="q" onclick="App.quickCoach(\'Give me one tip to speak up more in meetings\')">💡 Quick tip</div>' +
+      '<div class="quickchips"><div class="q" onclick="App.quickCoach(\'Role-play a tough conversation with my manager. You play my manager.\')">🎭 With my manager</div>' +
+      '<div class="q" onclick="App.quickCoach(\'Role-play a tough conversation with a colleague. You play the colleague.\')">🤝 With a colleague</div>' +
+      '<div class="q" onclick="App.quickCoach(\'Give me one tip I can use today for my goal\')">💡 Quick tip</div>' +
       '<div class="q" onclick="App.resetCoach()">↺ Reset</div></div></div>' +
       '<div class="composer"><input class="field" id="coachInput" placeholder="Type your reply…"><button class="send" onclick="App.sendCoach()">↑</button></div>';
     el('coachInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') sendCoach(); });
     scrollChat();
+    if (state.coachPrefill) { var t = state.coachPrefill; state.coachPrefill = null; quickCoach(t); }
   }).catch(function () { el('s-coach').innerHTML = '<div class="loading">Could not load coach.</div>' + tabbar('coach'); });
 }
 function bubbleHTML(m) {
@@ -731,11 +945,11 @@ function resetCoach() { api('coach/reset', { method: 'POST', body: {} }).finally
 /* ---------- expose ---------- */
 window.App = {
   tab: tab, back: back, openPath: openPath, openLesson: openLesson,
-  readerNext: readerNext, readerPrev: readerPrev, togglePlay: togglePlay, cycleSpeed: cycleSpeed, toggleBookAudio: toggleBookAudio,
+  readerNext: readerNext, readerPrev: readerPrev, togglePlay: togglePlay, cycleSpeed: cycleSpeed, playSection: playSection,
   quizAnswer: quizAnswer, quizNext: quizNext,
   pickPhoto: pickPhoto, toggleRecord: toggleRecord, removeProof: removeProof,
   submitAssignment: submitAssignment, remindLater: remindLater,
-  openBook: openBook, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
+  openBook: openBook, openApply: openApply, practice: practice, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
 };
 
 boot();

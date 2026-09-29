@@ -119,3 +119,11 @@ function rate_ok($key, $max, $window_sec) {
   @file_put_contents($file, implode(',', $hits), LOCK_EX);
   return true;
 }
+
+/** Lessons on a personal (AI) path belong to that learner only. 404s otherwise. */
+function require_lesson_access($lid, $uid) {
+  $s = db()->prepare('SELECT p.user_id FROM lessons l JOIN paths p ON p.id = l.path_id WHERE l.id = ?');
+  $s->execute([(int)$lid]);
+  $owner = $s->fetch();
+  if (!$owner || ($owner['user_id'] !== null && (int)$owner['user_id'] !== (int)$uid)) fail('not_found', 404);
+}

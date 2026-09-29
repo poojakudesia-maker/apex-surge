@@ -30,7 +30,8 @@ Composer. Keep it that way unless asked; everything must run by uploading files 
 ## Layout
 ```
 sql/schema.sql          tables (run first)
-sql/seed.sql            Communication path + 6 books (run second; TRUNCATEs content tables, not users)
+sql/seed.sql            Communication path + 6 books (run second; replaces curated content only)
+sql/migrations/         ALTERs for installs created before a schema change, run in order
 public/index.html       PWA shell (static onboarding screens live here)
 public/assets/js/app.js  the whole SPA (nav, onboarding, auth, reader, quiz, assignment, coach, progress)
 public/assets/js/config.js  API_BASE (default '/api')
@@ -39,7 +40,7 @@ public/sw.js, manifest.webmanifest, assets/icons/*
 public/api/index.php     router → routes/*.php
 public/api/config.php    SECRETS (git-ignored) — copy of config.sample.php
 public/api/db.php helpers.php claude.php mailer.php
-public/api/routes/       auth, onboarding, paths, lessons, quiz, assignments, library, progress, coach, admin
+public/api/routes/       auth, onboarding, plan (AI), paths, lessons, quiz, assignments, library, progress, coach, admin
 public/api/uploads/      assignment files (private; served only via GET /api/uploads/{id} with auth)
 public/admin/            content admin SPA (index.html + admin.js)
 ```
@@ -49,6 +50,13 @@ public/admin/            content admin SPA (index.html + admin.js)
 quiz_questions, quiz_options, assignments` · per-user: `user_lesson, user_quiz, user_assignment,
 assignment_files, playbook, coach_messages, user_stats`. Content hierarchy: **path → lessons → (cards,
 quiz_questions+options, one assignment)**.
+
+AI plans (`routes/plan.php`, `claude_json()` in `claude.php`): `user_books` holds a learner's 10 books;
+a personal path is a `paths` row with `user_id` set, whose lessons are private to that learner (always
+call `require_lesson_access()` on lesson-scoped routes). `book_lessons` caches one AI lesson per book
+(cards + quiz JSON) that is copied into each learner's lesson; `assignments.smart_goal` holds the
+learner's SMART goal. AI rows carry `needs_review` for Admin → AI review. Generation is serialized with
+MySQL `GET_LOCK` so concurrent requests don't duplicate work.
 
 ## Run locally
 There's no MySQL-free path (SQL is MySQL-specific), so use a local MySQL/MariaDB:
@@ -72,10 +80,8 @@ edit `api/config.php` → make `api/uploads/` writable → fill in `mail.smtp` �
 - Uploaded files are private; never expose the `uploads/` dir directly (its `.htaccess` denies access).
 
 ## Roadmap / not done yet
-- More paths (Productivity, Interview Prep, Leadership) — schema supports it; add a `paths` row with a
-  matching `goal` + lessons via admin.
+- Curated paths for goals other than Communication (used when no Claude key is set).
 - Assignment-due reminder emails (cron; reuse `send_mail()` from `api/mailer.php`).
-- On-demand AI book summaries (Claude client already present in `claude.php`).
 - Push notifications for streaks.
 
 When adding a feature: put new endpoints in a `routes/*.php` file exposing `route_<name>`, register it in

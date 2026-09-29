@@ -3,6 +3,10 @@
 require_once __DIR__ . '/paths.php'; // for lessons_with_status()
 
 function user_path_id($uid) {
+  // a personal AI plan wins over the shared path for the goal
+  $pp = db()->prepare('SELECT id FROM paths WHERE user_id = ? LIMIT 1');
+  $pp->execute([$uid]);
+  if ($pid = $pp->fetchColumn()) return (int)$pid;
   $o = db()->prepare('SELECT goal FROM onboarding WHERE user_id = ?');
   $o->execute([$uid]);
   $goal = $o->fetchColumn();
@@ -13,6 +17,19 @@ function user_path_id($uid) {
     if ($pid) return (int)$pid;
   }
   return (int)(db()->query('SELECT id FROM paths ORDER BY id LIMIT 1')->fetchColumn() ?: 0);
+}
+
+function user_has_plan($uid) {
+  $s = db()->prepare('SELECT 1 FROM paths WHERE user_id = ? LIMIT 1');
+  $s->execute([$uid]);
+  return (bool)$s->fetchColumn();
+}
+
+function next_after($lessons, $current) {
+  if (!$current) return null;
+  $seen = false;
+  foreach ($lessons as $l) { if ($seen) return $l; if ($l['id'] === $current['id']) $seen = true; }
+  return null;
 }
 
 function route_home($method, $seg) {
@@ -30,7 +47,14 @@ function route_home($method, $seg) {
   $path->execute([$pid]);
   $pathRow = $path->fetch() ?: null;
 
-  $books = db()->query('SELECT id, slug, title, author, category, cover_class, minutes FROM books ORDER BY sort, id LIMIT 4')->fetchAll();
+  $bs = db()->prepare(
+    'SELECT b.id, b.slug, b.title, b.author, b.category, b.cover_class, b.minutes, b.gen_status, ub.rank_no, ub.reason FROM user_books ub
+     JOIN books b ON b.id = ub.book_id WHERE ub.user_id = ? AND b.is_hidden = 0 ORDER BY ub.rank_no LIMIT 10');
+  $bs->execute([$user['id']]);
+  $books = $bs->fetchAll();
+  if (!$books) {
+    $books = db()->query('SELECT id, slug, title, author, category, cover_class, minutes FROM books WHERE is_hidden = 0 ORDER BY sort, id LIMIT 4')->fetchAll();
+  }
 
   json_out([
     'stats' => stat_out($stats),
@@ -40,7 +64,9 @@ function route_home($method, $seg) {
       'percent' => $total ? round($done * 100 / $total) : 0,
     ] : null,
     'current_lesson' => $current,
+    'next_lesson' => next_after($lessons, $current),
     'books' => $books,
+    'personal' => (bool)$books && user_has_plan($user['id']),
   ]);
 }
 

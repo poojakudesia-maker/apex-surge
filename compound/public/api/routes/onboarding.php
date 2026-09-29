@@ -39,7 +39,8 @@ function route_onboarding($method, $seg) {
     $path = $p->fetch();
     if (!$path) { $path = db()->query('SELECT id, slug FROM paths ORDER BY id LIMIT 1')->fetch(); }
 
-    json_out(['ok' => true, 'path' => $path]);
+    // with Claude configured the app builds a personal plan next (POST plan/build)
+    json_out(['ok' => true, 'path' => $path, 'ai' => claude_configured()]);
   }
 
   fail('method_not_allowed', 405);

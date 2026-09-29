@@ -9,7 +9,9 @@ function route_admin($method, $seg) {
 
   switch ($res) {
     case 'overview':   return admin_overview();
-    case 'paths':      return admin_crud('paths', $method, $id,
+    case 'review':     return admin_review($method, $seg);
+    case 'paths':      if ($method === 'GET') json_out(['rows' => db()->query('SELECT * FROM paths WHERE user_id IS NULL ORDER BY id')->fetchAll()]);
+                       return admin_crud('paths', $method, $id,
                           ['slug','title','subtitle','goal','description']);
     case 'books':      return admin_books($method, $id, $seg);
     case 'lessons':    return admin_crud('lessons', $method, $id,
@@ -35,6 +37,7 @@ function admin_overview() {
     'cards'       => $one('SELECT COUNT(*) FROM cards'),
     'questions'   => $one('SELECT COUNT(*) FROM quiz_questions'),
     'submissions' => $one("SELECT COUNT(*) FROM user_assignment WHERE status='submitted'"),
+    'ai_review'   => $one('SELECT COUNT(*) FROM books WHERE needs_review = 1') + $one('SELECT COUNT(*) FROM book_lessons WHERE needs_review = 1'),
   ]]);
 }
 
@@ -148,6 +151,53 @@ function admin_submissions($method, $id, $seg) {
     $b = body_json();
     db()->prepare("UPDATE user_assignment SET status='reviewed', feedback=?, reviewed_at=NOW() WHERE id=?")
         ->execute([substr($b['feedback'] ?? '', 0, 2000), $id]);
+    json_out(['ok' => true]);
+  }
+  fail('not_found', 404);
+}
+
+/**
+ * AI content review. AI books and lessons are live immediately; this is where an admin checks them.
+ *   GET  review                          books + lesson templates flagged needs_review
+ *   POST review/books/{id}    {action}   approve | hide | unhide | regenerate (clears summary + insights)
+ *   POST review/lessons/{id}  {action}   approve | regenerate (future learners get a fresh lesson)
+ */
+function admin_review($method, $seg) {
+  if ($method === 'GET' && !isset($seg[1])) {
+    $books = db()->query(
+      "SELECT b.id, b.title, b.author, b.category, b.blurb, b.summary, b.gen_status, b.is_hidden, b.created_at,
+              (SELECT COUNT(*) FROM user_books ub WHERE ub.book_id = b.id) AS learners
+       FROM books b WHERE b.needs_review = 1 ORDER BY b.id DESC")->fetchAll();
+    $ins = db()->prepare('SELECT text FROM book_insights WHERE book_id = ? ORDER BY idx');
+    foreach ($books as &$b) { $ins->execute([$b['id']]); $b['insights'] = $ins->fetchAll(PDO::FETCH_COLUMN); }
+    unset($b);
+    $lessons = db()->query(
+      "SELECT bl.id, bl.book_id, bl.title, bl.mission_line, bl.content, bl.created_at, b.title AS book_title
+       FROM book_lessons bl JOIN books b ON b.id = bl.book_id WHERE bl.needs_review = 1 ORDER BY bl.id DESC")->fetchAll();
+    foreach ($lessons as &$l) { $l['content'] = json_decode($l['content'], true); }
+    unset($l);
+    json_out(['books' => $books, 'lessons' => $lessons]);
+  }
+  $kind = $seg[1] ?? ''; $id = (int)($seg[2] ?? 0);
+  $action = body_json()['action'] ?? '';
+  if ($method !== 'POST' || !$id) fail('not_found', 404);
+
+  if ($kind === 'books') {
+    $sql = [
+      'approve'    => 'UPDATE books SET needs_review = 0 WHERE id = ?',
+      'hide'       => 'UPDATE books SET is_hidden = 1, needs_review = 0 WHERE id = ?',
+      'unhide'     => 'UPDATE books SET is_hidden = 0 WHERE id = ?',
+      'regenerate' => "UPDATE books SET summary = NULL, gen_status = 'pending', needs_review = 1 WHERE id = ?",
+    ][$action] ?? null;
+    if (!$sql) fail('invalid_action');
+    db()->prepare($sql)->execute([$id]);
+    if ($action === 'regenerate') db()->prepare('DELETE FROM book_insights WHERE book_id = ?')->execute([$id]);
+    json_out(['ok' => true]);
+  }
+  if ($kind === 'lessons') {
+    if ($action === 'approve') db()->prepare('UPDATE book_lessons SET needs_review = 0 WHERE id = ?')->execute([$id]);
+    elseif ($action === 'regenerate') db()->prepare('DELETE FROM book_lessons WHERE id = ?')->execute([$id]);
+    else fail('invalid_action');
     json_out(['ok' => true]);
   }
   fail('not_found', 404);
