@@ -1,0 +1,114 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-09-30T05:47:05Z"
+ },
+ "title": "UX Utility - Wizard Flow",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Wizard-1.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 800,
+   "title": "1. Project name",
+   "is_interactive": true
+  },
+  "Wizard-2.dc.html": {
+   "x": 1360,
+   "y": 0,
+   "w": 1280,
+   "h": 800,
+   "title": "2. Problem",
+   "is_interactive": true
+  },
+  "Wizard-3.dc.html": {
+   "x": 2720,
+   "y": 0,
+   "w": 1280,
+   "h": 800,
+   "title": "3. Persona",
+   "is_interactive": true
+  },
+  "Wizard-4a.dc.html": {
+   "x": 4080,
+   "y": 0,
+   "w": 1280,
+   "h": 800,
+   "title": "4a. Upload shots",
+   "is_interactive": true
+  },
+  "Wizard-4b.dc.html": {
+   "x": 5440,
+   "y": 0,
+   "w": 1280,
+   "h": 800,
+   "title": "4b. Describe text",
+   "is_interactive": true
+  },
+  "Wizard-5.dc.html": {
+   "x": 0,
+   "y": 1220,
+   "w": 1280,
+   "h": 800,
+   "title": "5. Review",
+   "is_interactive": true
+  },
+  "Wizard-6-live.dc.html": {
+   "x": 1360,
+   "y": 1220,
+   "w": 1280,
+   "h": 800,
+   "title": "6. Live run",
+   "is_interactive": true
+  },
+  "Wizard-7-report.dc.html": {
+   "x": 2720,
+   "y": 1220,
+   "w": 1280,
+   "h": 800,
+   "title": "7. Report",
+   "is_interactive": true
+  },
+  "Wizard-8-protocol.dc.html": {
+   "x": 4080,
+   "y": 1220,
+   "w": 1280,
+   "h": 800,
+   "title": "8. Protocol",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Wizard-1.dc.html",
+  "Wizard-2.dc.html",
+  "Wizard-3.dc.html",
+  "Wizard-4a.dc.html",
+  "Wizard-4b.dc.html",
+  "Wizard-5.dc.html",
+  "Wizard-6-live.dc.html",
+  "Wizard-7-report.dc.html",
+  "Wizard-8-protocol.dc.html"
+ ],
+ "notes": {
+  "row1": {
+   "x": 0,
+   "y": -300,
+   "text": "Wizard Onboarding: Project \u2192 Problem \u2192 Persona \u2192 Workflow \u2192 Review",
+   "kind": "title1",
+   "maxW": 6720
+  },
+  "row2": {
+   "x": 0,
+   "y": 920,
+   "text": "Results: Simulation \u2192 Report \u2192 Test Protocol",
+   "kind": "title1",
+   "maxW": 6720
+  }
+ },
+ "designSystems": []
+}

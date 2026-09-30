@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Step 4b: Describe in Text</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#fff;color:#000;font-family:'IBM Plex Sans',system-ui,sans-serif}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;box-sizing:border-box;border:1.5px solid #000;border-radius:6px;font:500 14px 'IBM Plex Sans',sans-serif;background:#fff;color:#000;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn-p{background:#000;color:#fff}
+.btn-p:hover{background:#262626}
+.btn-s{height:32px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:11px;font:500 11px 'IBM Plex Mono',monospace;border:1px solid #000;white-space:nowrap;box-sizing:border-box}
+.lbl{font:500 11px/1.2 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#5c5c5c}
+.tab{height:40px;display:inline-flex;align-items:center;padding:0 2px;font-size:14px;color:#5c5c5c;border-bottom:2px solid transparent;text-decoration:none;cursor:pointer}
+.tab-on{color:#000;border-bottom-color:#000;font-weight:600}
+input,textarea,select{font-family:'IBM Plex Sans',sans-serif;border:1.5px solid #000;border-radius:6px;padding:10px 12px;font-size:14px}
+textarea{resize:vertical;min-height:120px}
+.progress{display:flex;align-items:center;gap:12px}
+.progress-dot{width:36px;height:36px;border-radius:18px;border:2px solid #000;display:flex;align-items:center;justify-content:center;font:600 14px 'IBM Plex Mono',monospace}
+.progress-dot.done{background:#000;color:#fff}
+.progress-dot.active{background:#000;color:#fff}
+.progress-line{flex:1;height:2px;background:#e4e4e4}
+.card{border:1px solid #d4d4d4;border-radius:10px;background:#fff;padding:20px}
+.muted{color:#5c5c5c}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; display: flex; flex-direction: column; background: #ffffff; padding: 40px 48px; gap: 24px">
+<div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+<span class="chip">4</span><span class="muted" style="font-size:13px">of 5</span>
+</div>
+<h1 style="margin: 0; font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em">Enter the workflow</h1><p style="margin: 4px 0 0; font-size: 15px" class="muted">Upload screenshots or describe screens</p>
+</div>
+<div style="display:flex;border-bottom:1px solid #d4d4d4;gap:12px;margin-bottom:16px"><a href="Wizard-4a.dc.html" class="tab" style="cursor:pointer">Upload screenshots</a><span class="tab tab-on">Describe in text</span></div>
+<div style="flex-grow:1;display:flex;flex-direction:column;gap:12px;justify-content:center">
+<div style="display:flex;flex-direction:column;gap:6px">
+<label class="lbl">Describe each screen in order</label>
+<textarea placeholder="Screen 1: Home page with 'Book now' button&#10;Screen 2: Find doctor list with search&#10;Screen 3: Doctor profile&#10;Screen 4: Pick appointment time&#10;Screen 5: Payment form&#10;Screen 6: Confirmation">Screen 1 · Home
+Hero: "See a doctor this week". Button "Book now". Top nav: Services, Doctors, Log in.
+
+Screen 2 · Find a doctor
+Search field "Symptom or specialty". List of 6 doctors with photo, rating, "Next available".
+
+Screen 3 · Doctor profile
+Bio, languages, fee "$0 first consult". Button "Pick a time".
+
+Screen 4 · Pick a time
+Week calendar, time slots. Link "Next available". Button "Continue".</textarea>
+</div>
+</div>
+<div style="display:flex;gap:10px;justify-content:space-between"><a href="Wizard-3.dc.html" class="btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg> Back</a><div></div><a href="Wizard-5.dc.html" class="btn btn-p">Review <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

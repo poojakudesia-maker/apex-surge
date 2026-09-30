@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walkthrough - Wizard Onboarding Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f8f8f8;
+  padding: 48px 40px;
+  color: #000;
+}
+.container {
+  max-width: 1920px;
+  margin: 0 auto;
+}
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+.subtitle {
+  font-size: 16px;
+  color: #5c5c5c;
+  margin-bottom: 48px;
+  font-weight: 400;
+}
+.section-group {
+  margin-bottom: 80px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d4d4d4;
+  color: #262626;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 32px;
+  margin-bottom: 40px;
+}
+.screen {
+  border: 1px solid #d4d4d4;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.screen:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.screen-frame {
+  width: 100%;
+  aspect-ratio: 1280 / 800;
+  overflow: hidden;
+  background: #fff;
+}
+.screen-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+}
+.screen-label {
+  padding: 12px 16px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 14px;
+  font-weight: 500;
+  background: #fafafa;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-right: 8px;
+}
+.badge-wizard { background: #e3f2fd; color: #0d47a1; }
+.badge-results { background: #f3e5f5; color: #4a148c; }
+.flow-info {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+.flow-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flow-info-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #666;
+}
+.flow-info-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+.note {
+  background: #fffacd;
+  border-left: 3px solid #ffd700;
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 24px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Walkthrough: Wizard Onboarding</h1>
+<p class="subtitle">Linear 5-step wizard for setting up simulations + results screens</p>
+
+<div class="flow-info">
+  <div class="flow-info-item">
+    <span class="flow-info-label">Total screens</span>
+    <span class="flow-info-value">9 screens</span>
+  </div>
+  <div class="flow-info-item">
+    <span class="flow-info-label">Wizard steps</span>
+    <span class="flow-info-value">5 + review</span>
+  </div>
+  <div class="flow-info-item">
+    <span class="flow-info-label">Results views</span>
+    <span class="flow-info-value">Simulation, Report, Protocol</span>
+  </div>
+  <div class="flow-info-item">
+    <span class="flow-info-label">Workflow input</span>
+    <span class="flow-info-value">Images or text</span>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Interactive:</strong> Click any screen below to open it in full view. Use Next/Back buttons to navigate. Screenshot upload (step 4a) and text description (step 4b) are separate tabs on the workflow step.
+</div>
+
+<div class="section-group">
+  <div class="section-title"><span class="badge badge-wizard">Wizard</span>Onboarding Flow</div>
+  <div class="grid">
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-1.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 1:</strong> Project name</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-2.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 2:</strong> Problem statement</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-3.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 3:</strong> Select persona</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-4a.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 4a:</strong> Upload screenshots</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-4b.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 4b:</strong> Describe workflow</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-5.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 5:</strong> Review &amp; confirm</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-3-custom.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Alternate:</strong> Custom persona builder</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-group">
+  <div class="section-title"><span class="badge badge-results">Results</span>Simulation &amp; Report</div>
+  <div class="grid">
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-6-live.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 6:</strong> Live simulation running</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-7-report.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 7:</strong> Simulation report</div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-frame">
+        <iframe src="Wizard-8-protocol.dc.html"></iframe>
+      </div>
+      <div class="screen-label"><strong>Step 8:</strong> Test protocol</div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-info" style="background: #f0f7ff; border-color: #b3e5fc">
+  <div class="flow-info-item">
+    <span class="flow-info-label">User flow</span>
+    <span class="flow-info-value">1 → 2 → 3 → 4 (tabs) → 5 → 6 → 7 → 8</span>
+  </div>
+  <div class="flow-info-item">
+    <span class="flow-info-label">Step 4 tabs</span>
+    <span class="flow-info-value">Upload (4a) or Describe (4b)</span>
+  </div>
+  <div class="flow-info-item">
+    <span class="flow-info-label">Navigation</span>
+    <span class="flow-info-value">Back/Next buttons + step indicator</span>
+  </div>
+  <div class="flow-info-item">
+    <span class="flow-info-label">After simulation</span>
+    <span class="flow-info-value">Can restart (→ step 1)</span>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
