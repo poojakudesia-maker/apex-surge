@@ -1,5 +1,5 @@
 /* LeapPath service worker — app-shell cache, network-first for API. */
-var CACHE = 'compound-v6';
+var CACHE = 'compound-v7';
 var SHELL = [
   './',
   './index.html',
@@ -13,7 +13,10 @@ var SHELL = [
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL).catch(function () {}); }));
+  e.waitUntil(caches.open(CACHE).then(function (c) {
+    // cache: 'reload' skips the browser's HTTP cache so a new version never stores old files
+    return c.addAll(SHELL.map(function (u) { return new Request(u, { cache: 'reload' }); })).catch(function () {});
+  }));
 });
 
 self.addEventListener('activate', function (e) {

@@ -67,6 +67,8 @@ function route_home($method, $seg) {
     'next_lesson' => next_after($lessons, $current),
     'books' => $books,
     'personal' => (bool)$books && user_has_plan($user['id']),
+    // AI switched on after this learner onboarded: offer to build their personal plan
+    'can_build_plan' => claude_configured() && !user_has_plan($user['id']),
   ]);
 }
 

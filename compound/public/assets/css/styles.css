@@ -565,3 +565,7 @@ button.avatar:active{transform:scale(.92)}
 .skelchoice{pointer-events:none;border-color:var(--line-soft)}
 .skelchoice .ic,.skelchoice i{background:linear-gradient(90deg,var(--surface-2) 0,var(--line) 40%,var(--surface-2) 80%);background-size:300% 100%;animation:shimmer 1.4s ease-in-out infinite}
 .skelchoice i{display:block;height:14px;border-radius:7px;flex:1;max-width:70%}
+
+.planoffer{margin-bottom:14px;border-color:var(--grow);background:linear-gradient(135deg,var(--grow-wash),var(--surface) 70%)}
+.planoffer .t{font-family:var(--font-d);font-weight:800;font-size:18px;margin:10px 0 4px}
+.planoffer .muted{font-size:13.5px;line-height:1.45;margin-bottom:12px}

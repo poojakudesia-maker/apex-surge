@@ -443,7 +443,7 @@ function loadHome() {
         '<div class="greet"><div><div class="hi">' + greet + (firstName() ? ', ' + esc(firstName()) : '') + ' 👋</div><div class="sub">' +
           (s.streak ? 'Day ' + s.streak + ' of your streak. Keep it going.' : 'Let\'s start your streak today.') +
         '</div></div><div class="streakpill">🔥 ' + (s.streak || 0) + '</div></div>' +
-        '<div class="pad" style="padding-top:16px">' + mission + pathCard +
+        '<div class="pad" style="padding-top:16px">' + (d.can_build_plan ? planOffer() : '') + mission + pathCard +
           '<h2 class="sec">' + (d.personal ? 'Your ' + (d.books || []).length + ' books' : 'From your library') +
           ' <span class="more" onclick="App.tab(\'library\')">See all</span></h2></div>' +
         '<div class="hscroll">' + books + '</div><div style="height:16px"></div>' +
@@ -454,6 +454,15 @@ function loadHome() {
     el('s-home').innerHTML = '<div class="loading">Could not load. Check your connection and try again.</div>' + tabbar('home');
   });
 }
+
+function planOffer() {
+  var g = state.onboarding && state.onboarding.goal;
+  return '<div class="card planoffer"><div class="tag grow">New</div>' +
+    '<div class="t">Get your personal ' + esc(g ? g.toLowerCase() + ' ' : '') + 'plan</div>' +
+    '<div class="muted">10 books picked for your goal, with summaries, lessons and SMART goals made for you.</div>' +
+    '<button class="btn sm" onclick="App.buildPlan()">Build my plan \u2192</button></div>';
+}
+function buildPlan() { runBuildingAI(); }
 
 /* ---------- PATH ---------- */
 function openPath() {
@@ -1246,7 +1255,7 @@ window.App = {
   quizAnswer: quizAnswer, quizNext: quizNext,
   pickPhoto: pickPhoto, toggleRecord: toggleRecord, removeProof: removeProof,
   submitAssignment: submitAssignment, remindLater: remindLater,
-  openBook: openBook, openApply: openApply, practice: practice, editName: editName, editGoals: editGoals, logout: logout, openShare: openShare, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
+  openBook: openBook, openApply: openApply, buildPlan: buildPlan, practice: practice, editName: editName, editGoals: editGoals, logout: logout, openShare: openShare, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
 };
 
 heroAnim();

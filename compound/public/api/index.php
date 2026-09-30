@@ -35,7 +35,8 @@ $map = [
 ];
 
 if ($head === '' || $head === 'ping') {
-  json_out(['ok' => true, 'service' => 'compound-api', 'time' => date('c')]);
+  json_out(['ok' => true, 'service' => 'compound-api', 'app' => APP_NAME, 'version' => APP_VERSION,
+    'ai' => claude_configured(), 'time' => date('c')]);
 }
 if (!isset($map[$head])) fail('not_found', 404);
 
