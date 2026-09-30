@@ -160,6 +160,11 @@ If you already imported `schema.sql` before book summaries existed:
   due 2 days out; files are served back only to the owner or an admin via `GET /api/uploads/{id}`.
 - **Library:** `GET /api/library` lists books; `GET /api/books/{id}` returns the blurb, written summary and key
   insights. The book page can read the summary aloud.
+- **Profile (Me tab):** `GET /api/timeline` returns the learner's journey (joined, plan built, lessons,
+  quizzes, assignments, reviews) and a summary; `POST /api/auth/profile` sets the display name;
+  `POST /api/auth/logout` and `/api/auth/logout-all` end one or every session. "Share my progress" draws
+  a 1080x1350 image in the browser (no email or private data on it) and uses the phone's share sheet,
+  with save-image and copy-text fallbacks.
 - **Coach:** `POST /api/coach` calls the Claude Messages API with the learner's profile as context.
 - **Progress:** streak, growth score, weekly activity and Playbook.
 

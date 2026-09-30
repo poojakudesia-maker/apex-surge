@@ -11,6 +11,8 @@ function route_auth($method, $seg) {
   if ($action === 'verify-code'  && $method === 'POST') return auth_verify_code();
   if ($action === 'me'           && $method === 'GET')  return auth_me();
   if ($action === 'logout'       && $method === 'POST') return auth_logout();
+  if ($action === 'logout-all'   && $method === 'POST') return auth_logout_all();
+  if ($action === 'profile'      && $method === 'POST') return auth_profile();
 
   fail('not_found', 404);
 }
@@ -121,12 +123,32 @@ function auth_logout() {
   json_out(['ok' => true]);
 }
 
+/** Sign out everywhere: removes every session for this user. */
+function auth_logout_all() {
+  $user = require_user();
+  db()->prepare('DELETE FROM sessions WHERE user_id = ?')->execute([$user['id']]);
+  json_out(['ok' => true]);
+}
+
+/** Update the learner's display name. */
+function auth_profile() {
+  $user = require_user();
+  $b = body_json();
+  $name = trim(preg_replace('/\s+/', ' ', (string)($b['display_name'] ?? '')));
+  $name = mb_substr(strip_tags($name), 0, 60);
+  db()->prepare('UPDATE users SET display_name = ? WHERE id = ?')->execute([$name === '' ? null : $name, $user['id']]);
+  $u = db()->prepare('SELECT * FROM users WHERE id = ?');
+  $u->execute([$user['id']]);
+  json_out(['user' => public_user($u->fetch())]);
+}
+
 // ---- helpers ----
 function public_user($u) {
   return [
     'id'           => (int)$u['id'],
     'email'        => $u['email'],
     'display_name' => $u['display_name'],
+    'member_since' => $u['created_at'] ?? null,
     'is_admin'     => (bool)$u['is_admin'] || in_array(strtolower($u['email']), array_map('strtolower', cfg('admin_emails') ?: []), true),
   ];
 }

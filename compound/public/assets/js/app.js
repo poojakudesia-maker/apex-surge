@@ -287,7 +287,7 @@ function warmPlan() {
 
 /* ---------- tab bar ---------- */
 function tabbar(active) {
-  var tabs = [['home', '◎', 'Today'], ['library', '▤', 'Library'], ['coach', '✦', 'Coach'], ['progress', '◔', 'Progress']];
+  var tabs = [['home', '◎', 'Today'], ['library', '▤', 'Library'], ['coach', '✦', 'Coach'], ['progress', '◔', 'Progress'], ['profile', '◑', 'Me']];
   return '<nav class="tabbar">' + tabs.map(function (t) {
     return '<button class="' + (t[0] === active ? 'on' : '') + '" onclick="App.tab(\'' + t[0] + '\')"><span class="ti">' + t[1] + '</span>' + t[2] + '</button>';
   }).join('') + '</nav>';
@@ -298,6 +298,7 @@ function tab(name) {
   if (name === 'library') return loadLibrary().then(function () { show('s-library', { replace: true }); });
   if (name === 'coach') return loadCoach().then(function () { show('s-coach', { replace: true }); });
   if (name === 'progress') return loadProgress().then(function () { show('s-progress', { replace: true }); });
+  if (name === 'profile') return loadProfile().then(function () { show('s-profile', { replace: true }); });
 }
 
 /* ---------- HOME ---------- */
@@ -339,7 +340,7 @@ function loadHome() {
     var greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
     el('s-home').innerHTML =
       '<div class="scroll">' +
-        '<div class="greet"><div><div class="hi">' + greet + ' 👋</div><div class="sub">' +
+        '<div class="greet"><div><div class="hi">' + greet + (firstName() ? ', ' + esc(firstName()) : '') + ' 👋</div><div class="sub">' +
           (s.streak ? 'Day ' + s.streak + ' of your streak. Keep it going.' : 'Let\'s start your streak today.') +
         '</div></div><div class="streakpill">🔥 ' + (s.streak || 0) + '</div></div>' +
         '<div class="pad" style="padding-top:16px">' + mission + pathCard +
@@ -882,7 +883,7 @@ function loadProgress() {
       : '<div class="muted" style="font-size:13.5px;padding:4px 2px">Your saved insights will show here as you learn.</div>';
     el('s-progress').innerHTML =
       '<div class="apphead"><div style="flex:1"><div class="eyebrow">Your growth</div><h1>Progress</h1></div>' +
-        '<div class="avatar">' + esc(((state.user && state.user.email) || 'U')[0].toUpperCase()) + '</div></div>' +
+        '<button class="avatar" onclick="App.tab(\'profile\')" aria-label="Your profile">' + esc(initial()) + '</button></div>' +
       '<div class="scroll"><div class="scorewrap"><div class="bigring">' +
         '<svg width="170" height="170" viewBox="0 0 170 170" style="transform:rotate(-90deg)">' +
         '<circle cx="85" cy="85" r="74" fill="none" stroke="var(--surface-2)" stroke-width="14"/>' +
@@ -896,6 +897,202 @@ function loadProgress() {
         '<h2 class="sec">Your assignments</h2>' + assignmentsList(asg) +
         '<h2 class="sec">Your Playbook</h2>' + play + '</div></div>' + tabbar('progress');
   }).catch(function () { el('s-progress').innerHTML = '<div class="loading">Could not load progress.</div>' + tabbar('progress'); });
+}
+
+/* ---------- PROFILE, TIMELINE, SHARE ---------- */
+function displayName() { var u = state.user || {}; return (u.display_name || '').trim(); }
+function firstName() { return displayName().split(' ')[0]; }
+function initial() { var u = state.user || {}; return ((displayName() || u.email || 'U')[0] || 'U').toUpperCase(); }
+function monthYear(dt) { return dt ? new Date(String(dt).replace(' ', 'T')).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : ''; }
+function dayLabel(dt) {
+  var d = new Date(String(dt).replace(' ', 'T')), t = new Date(); t.setHours(0, 0, 0, 0);
+  var dd = new Date(d); dd.setHours(0, 0, 0, 0);
+  var diff = Math.round((t - dd) / 864e5);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+var EV = { joined: ['✦', 'brand'], plan: ['▤', 'brand'], lesson: ['✓', 'grow'], quiz: ['?', 'amber'], assignment: ['📷', 'grow'], review: ['★', 'amber'] };
+
+function loadProfile() {
+  var me = state.user ? Promise.resolve({ user: state.user }) : api('auth/me');
+  return Promise.all([me, api('timeline')]).then(function (res) {
+    state.user = res[0].user; var t = res[1], s = t.summary, pr = s.profile || {};
+    state.timeline = t;
+    var pct = s.lessons_total ? Math.round(s.lessons_done / s.lessons_total * 100) : 0;
+    var groups = [], last = null;
+    (t.events || []).forEach(function (e) {
+      var lb = dayLabel(e.at);
+      if (lb !== last) { groups.push({ label: lb, items: [] }); last = lb; }
+      groups[groups.length - 1].items.push(e);
+    });
+    var timeline = groups.map(function (g) {
+      return '<div class="tlday">' + esc(g.label) + '</div>' + g.items.map(function (e) {
+        var k = EV[e.type] || ['•', 'brand'];
+        var time = new Date(String(e.at).replace(' ', 'T')).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        return '<div class="tlitem"><div class="tldot ' + k[1] + '">' + k[0] + '</div><div class="tlbody"><div class="t">' + esc(e.title) + '</div>' +
+          (e.detail ? '<div class="d">' + esc(e.detail) + '</div>' : '') + '<div class="tm">' + esc(time) + '</div></div></div>'; }).join('');
+    }).join('');
+    var goalLine = [pr.goal, pr.role, pr.level].filter(Boolean).join(' · ');
+    el('s-profile').innerHTML =
+      '<div class="apphead"><div style="flex:1"><div class="eyebrow">Your profile</div><h1>Me</h1></div></div>' +
+      '<div class="scroll"><div class="pad" style="padding-top:4px">' +
+        '<div class="profhero"><div class="halo"></div><div class="bigavatar">' + esc(initial()) + '</div>' +
+          '<div style="flex:1;min-width:0"><div class="pname" id="pname">' + esc(displayName() || 'Add your name') +
+          ' <button class="editname" onclick="App.editName()" aria-label="Edit name">✎</button></div>' +
+          '<div class="pmail">' + esc(state.user.email || '') + '</div>' +
+          '<div class="psince">Member since ' + esc(monthYear(state.user.member_since)) + '</div></div></div>' +
+        (goalLine ? '<div class="goalchip">🎯 ' + esc(goalLine) + (pr.daily_minutes ? ' · ' + pr.daily_minutes + ' min a day' : '') + '</div>' : '') +
+        '<div class="pstats stagger">' +
+          '<div class="ps"><div class="n">🔥 ' + s.streak + '</div><div class="l">Day streak</div></div>' +
+          '<div class="ps"><div class="n">' + s.lessons_done + '</div><div class="l">Lessons done</div></div>' +
+          '<div class="ps"><div class="n">' + s.quiz_avg + '%</div><div class="l">Quiz average</div></div>' +
+          '<div class="ps"><div class="n">' + s.assignments + '</div><div class="l">Actions proven</div></div></div>' +
+        (s.lessons_total ? '<div class="card planbar"><div class="row"><b>Your plan</b><span class="muted">' + s.lessons_done + ' of ' + s.lessons_total + ' lessons</span></div>' +
+          '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+          (s.now_practising ? '<div class="muted" style="font-size:13px;margin-top:8px">Now practising: <b style="color:var(--ink)">' + esc(s.now_practising) + '</b></div>' : '') + '</div>' : '') +
+        '<button class="btn sharebtn" onclick="App.openShare()"><span>↗</span> Share my progress</button>' +
+        '<h2 class="sec">Your journey</h2><div class="timeline stagger">' + (timeline || '<div class="muted">Your milestones will appear here.</div>') + '</div>' +
+        '<h2 class="sec">Settings</h2><div class="card settings">' +
+          '<button onclick="App.editGoals()"><span>🎯 Change my goals</span><span class="chev">›</span></button>' +
+          '<button onclick="App.logout()"><span>↪ Log out</span><span class="chev">›</span></button>' +
+          '<button class="danger" onclick="App.logout(true)"><span>Log out of all devices</span><span class="chev">›</span></button></div>' +
+        '<div style="height:18px"></div></div></div>' + tabbar('profile');
+  }).catch(function (e) {
+    if (e && e.status === 401) return sessionExpired();
+    el('s-profile').innerHTML = '<div class="loading">Could not load your profile.</div>' + tabbar('profile');
+  });
+}
+
+function editName() {
+  var w = el('pname'); if (!w) return;
+  w.innerHTML = '<input class="field nameinput" id="nameInput" maxlength="60" placeholder="Your name" value="' + esc(displayName()) + '">';
+  var i = el('nameInput'); i.focus(); i.select();
+  var saved = false;
+  function save() {
+    if (saved) return; saved = true;
+    api('auth/profile', { method: 'POST', body: { display_name: i.value } }).then(function (d) {
+      state.user = d.user; haptic(10); loadProfile();
+    }).catch(function () { toast('Could not save your name.'); loadProfile(); });
+  }
+  i.addEventListener('keydown', function (e) { if (e.key === 'Enter') save(); if (e.key === 'Escape') { saved = true; loadProfile(); } });
+  i.addEventListener('blur', save);
+}
+
+function editGoals() {
+  if (!confirm('Change your goals? We’ll rebuild your plan around them. Lessons you’ve already started stay.')) return;
+  histStack = ['s-profile']; show('s-goal');
+}
+
+function logout(all) {
+  if (!confirm(all ? 'Log out on every device you use Compound on?' : 'Log out of Compound on this device?')) return;
+  var done = function () {
+    stopAudio();
+    state.token = null; state.user = null; state.home = null; state.timeline = null;
+    try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    warm = { running: false, done: {} };
+    histStack = []; show('s-welcome', { replace: true });
+    toast(all ? 'Logged out on all devices.' : 'You’re logged out.');
+  };
+  api(all ? 'auth/logout-all' : 'auth/logout', { method: 'POST', body: {} }).then(done, done);
+}
+
+/* Share card: a 1080x1350 image drawn on a canvas, shared with the system share sheet. */
+function wrapText(ctx, text, x, y, maxW, lh, maxLines) {
+  var words = String(text).split(/\s+/), line = '', lines = 0;
+  for (var i = 0; i < words.length; i++) {
+    var test = line ? line + ' ' + words[i] : words[i];
+    if (ctx.measureText(test).width > maxW && line) {
+      if (++lines === maxLines) { ctx.fillText(line.replace(/[,.;:]?$/, '…'), x, y); return y + lh; }
+      ctx.fillText(line, x, y); y += lh; line = words[i];
+    } else line = test;
+  }
+  if (line) { ctx.fillText(line, x, y); y += lh; }
+  return y;
+}
+function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawShareCard(s) {
+  var W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+  var ctx = c.getContext('2d'), D = '"Bricolage Grotesque", sans-serif', B = 'Figtree, sans-serif';
+  var g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#2E1F8F'); g.addColorStop(1, '#6242F5');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.beginPath(); ctx.arc(W - 40, 120, 300, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.beginPath(); ctx.arc(60, H - 80, 360, 0, 7); ctx.fill();
+  // brand
+  ctx.fillStyle = '#fff'; roundRect(ctx, 80, 80, 84, 84, 22); ctx.fill();
+  ctx.fillStyle = '#6242F5'; ctx.font = '800 54px ' + D; ctx.textAlign = 'center'; ctx.fillText('C', 122, 141);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '700 40px ' + D; ctx.fillText('Compound', 188, 136);
+  // headline
+  var who = firstName() ? firstName() + '’s' : 'My';
+  ctx.font = '600 34px ' + B; ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillText(who + ' learning progress', 80, 290);
+  ctx.font = '800 92px ' + D; ctx.fillStyle = '#fff';
+  var y = wrapText(ctx, s.profile && s.profile.goal ? 'Levelling up in ' + s.profile.goal : 'Levelling up, daily', 80, 390, W - 160, 100, 2);
+  // stat tiles
+  var tiles = [[s.streak, 'day streak'], [s.lessons_done, 'lessons done'], [s.quiz_avg + '%', 'quiz average'], [s.assignments, 'real-world actions']];
+  var tw = (W - 160 - 30) / 2, th = 170, ty = y + 20;
+  tiles.forEach(function (t, i) {
+    var x = 80 + (i % 2) * (tw + 30), yy = ty + Math.floor(i / 2) * (th + 30);
+    ctx.fillStyle = 'rgba(255,255,255,.14)'; roundRect(ctx, x, yy, tw, th, 32); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '800 80px ' + D; ctx.fillText(String(t[0]), x + 36, yy + 98);
+    ctx.font = '600 30px ' + B; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(t[1], x + 38, yy + 142);
+  });
+  y = ty + 2 * th + 30 + 70;
+  // plan bar
+  if (s.lessons_total) {
+    ctx.fillStyle = '#fff'; ctx.font = '700 32px ' + B; ctx.fillText('Plan: ' + s.lessons_done + ' of ' + s.lessons_total + ' lessons', 80, y);
+    ctx.fillStyle = 'rgba(255,255,255,.2)'; roundRect(ctx, 80, y + 26, W - 160, 22, 11); ctx.fill();
+    var pw = Math.max(22, (W - 160) * s.lessons_done / s.lessons_total);
+    ctx.fillStyle = '#22C79A'; roundRect(ctx, 80, y + 26, pw, 22, 11); ctx.fill();
+    y += 110;
+  }
+  if (s.now_practising && y < H - 180) {
+    ctx.font = '600 30px ' + B; ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillText('Now practising', 80, y - 10);
+    ctx.font = '700 40px ' + D; ctx.fillStyle = '#fff'; wrapText(ctx, s.now_practising, 80, y + 42, W - 160, 50, y < H - 260 ? 2 : 1);
+  }
+  // footer
+  ctx.font = '600 28px ' + B; ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.fillText(new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }), 80, H - 80);
+  ctx.textAlign = 'right'; ctx.fillText(location.host, W - 80, H - 80);
+  return c;
+}
+function shareText(s) {
+  var parts = [];
+  if (s.streak) parts.push(s.streak + '-day streak');
+  parts.push(s.lessons_done + ' lesson' + (s.lessons_done === 1 ? '' : 's') + ' done');
+  if (s.assignments) parts.push(s.assignments + ' real-world action' + (s.assignments === 1 ? '' : 's'));
+  return 'My progress on Compound' + (s.profile && s.profile.goal ? ' (' + s.profile.goal + ')' : '') + ': ' + parts.join(', ') + '. Learning from great books, 10 minutes a day. ' + location.origin;
+}
+function openShare() {
+  var s = state.timeline && state.timeline.summary; if (!s) return;
+  var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  ready.then(function () {
+    var canvas = drawShareCard(s), text = shareText(s);
+    canvas.toBlob(function (blob) {
+      var url = URL.createObjectURL(blob), file = new File([blob], 'compound-progress.png', { type: 'image/png' });
+      var canFiles = navigator.canShare && navigator.canShare({ files: [file] });
+      var ov = document.createElement('div'); ov.className = 'sheetov'; ov.id = 'shareSheet';
+      ov.innerHTML = '<div class="sheetbox" role="dialog" aria-label="Share your progress"><div class="grab"></div>' +
+        '<h3>Share your progress</h3><img class="sharepreview" alt="Your progress card" src="' + url + '">' +
+        '<div class="sharetext">' + esc(text) + '</div>' +
+        '<div class="shareacts">' +
+          (navigator.share ? '<button class="btn" id="shNative">Share…</button>' : '') +
+          '<button class="btn ghost" id="shSave">Save image</button><button class="btn ghost" id="shCopy">Copy text</button></div>' +
+        '<button class="linkbtn" id="shClose" style="align-self:center">Close</button></div>';
+      document.body.appendChild(ov);
+      requestAnimationFrame(function () { ov.classList.add('open'); });
+      var close = function () { ov.classList.remove('open'); setTimeout(function () { ov.remove(); URL.revokeObjectURL(url); }, 250); };
+      ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+      el('shClose').onclick = close;
+      el('shSave').onclick = function () { var a = document.createElement('a'); a.href = url; a.download = 'compound-progress.png'; document.body.appendChild(a); a.click(); a.remove(); haptic(10); };
+      el('shCopy').onclick = function () {
+        (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Copied. Paste it anywhere.'); }, function () { toast('Copy not available here.'); });
+      };
+      if (el('shNative')) el('shNative').onclick = function () {
+        var data = canFiles ? { files: [file], text: text } : { text: text, url: location.origin };
+        navigator.share(data).then(function () { close(); }).catch(function () {});
+      };
+    }, 'image/png');
+  });
 }
 
 /* ---------- COACH ---------- */
@@ -949,7 +1146,7 @@ window.App = {
   quizAnswer: quizAnswer, quizNext: quizNext,
   pickPhoto: pickPhoto, toggleRecord: toggleRecord, removeProof: removeProof,
   submitAssignment: submitAssignment, remindLater: remindLater,
-  openBook: openBook, openApply: openApply, practice: practice, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
+  openBook: openBook, openApply: openApply, practice: practice, editName: editName, editGoals: editGoals, logout: logout, openShare: openShare, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
 };
 
 boot();

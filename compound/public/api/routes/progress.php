@@ -130,3 +130,65 @@ function stat_out($s) {
     'actions_done'     => (int)$s['actions_done'],
   ];
 }
+
+/**
+ * GET timeline -> the learner's journey (newest first) plus a summary for the profile and share card.
+ */
+function route_timeline($method, $seg) {
+  $user = require_user();
+  $uid = (int)$user['id'];
+  $ev = [];
+  $add = function ($type, $at, $title, $detail = null) use (&$ev) {
+    if ($at) $ev[] = ['type' => $type, 'at' => $at, 'title' => $title, 'detail' => $detail];
+  };
+
+  $add('joined', $user['created_at'], 'Joined Compound', 'Your journey started here');
+
+  $p = db()->prepare('SELECT p.created_at, p.goal, COUNT(l.id) AS n FROM paths p LEFT JOIN lessons l ON l.path_id = p.id WHERE p.user_id = ? GROUP BY p.id');
+  $p->execute([$uid]);
+  foreach ($p->fetchAll() as $r) $add('plan', $r['created_at'], 'Your ' . $r['goal'] . ' plan was built', $r['n'] . ' books picked for you');
+
+  $l = db()->prepare(
+    'SELECT ul.completed_at, l.title, b.title AS book FROM user_lesson ul JOIN lessons l ON l.id = ul.lesson_id
+     LEFT JOIN books b ON b.id = l.source_book_id WHERE ul.user_id = ? AND ul.status = \'done\' ORDER BY ul.completed_at DESC LIMIT 60');
+  $l->execute([$uid]);
+  foreach ($l->fetchAll() as $r) $add('lesson', $r['completed_at'], 'Finished “' . $r['title'] . '”', $r['book'] ? 'From ' . $r['book'] : null);
+
+  $q = db()->prepare(
+    'SELECT uq.taken_at, uq.score, uq.total, l.title FROM user_quiz uq JOIN lessons l ON l.id = uq.lesson_id
+     WHERE uq.user_id = ? ORDER BY uq.id DESC LIMIT 60');
+  $q->execute([$uid]);
+  foreach ($q->fetchAll() as $r) $add('quiz', $r['taken_at'], 'Quiz: ' . $r['score'] . '/' . $r['total'], $r['title']);
+
+  $a = db()->prepare(
+    'SELECT ua.submitted_at, ua.reviewed_at, ua.feedback, a.title FROM user_assignment ua
+     JOIN assignments a ON a.lesson_id = ua.lesson_id WHERE ua.user_id = ? ORDER BY ua.id DESC LIMIT 60');
+  $a->execute([$uid]);
+  foreach ($a->fetchAll() as $r) {
+    $add('assignment', $r['submitted_at'], 'Sent proof: ' . $r['title'], 'Field assignment done');
+    $add('review', $r['reviewed_at'], 'Coach reviewed “' . $r['title'] . '”', $r['feedback'] ? mb_substr($r['feedback'], 0, 160) : null);
+  }
+  usort($ev, fn($x, $y) => strcmp($y['at'], $x['at']));
+
+  // summary
+  $one = function ($sql) use ($uid) { $s = db()->prepare($sql); $s->execute([$uid]); return $s->fetchColumn(); };
+  $pid = user_path_id($uid);
+  $lessons = $pid ? lessons_with_status($pid, $uid) : [];
+  $now = null;
+  foreach ($lessons as $x) { if ($x['status'] === 'now') { $now = $x['title']; break; } }
+  $o = db()->prepare('SELECT goal, role, level, daily_minutes FROM onboarding WHERE user_id = ?');
+  $o->execute([$uid]);
+  $stats = stat_out(ensure_stats($uid));
+  json_out([
+    'events'  => array_slice($ev, 0, 100),
+    'summary' => $stats + [
+      'lessons_done'   => count(array_filter($lessons, fn($x) => $x['status'] === 'done')),
+      'lessons_total'  => count($lessons),
+      'quiz_avg'       => (int)round((float)$one('SELECT AVG(score / NULLIF(total, 0)) * 100 FROM user_quiz WHERE user_id = ?')),
+      'assignments'    => (int)$one("SELECT COUNT(*) FROM user_assignment WHERE user_id = ? AND status IN ('submitted','reviewed')"),
+      'books'          => (int)$one('SELECT COUNT(*) FROM user_books WHERE user_id = ?'),
+      'now_practising' => $now,
+      'profile'        => $o->fetch() ?: null,
+    ],
+  ]);
+}

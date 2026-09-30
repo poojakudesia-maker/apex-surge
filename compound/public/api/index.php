@@ -20,6 +20,7 @@ $map = [
   'progress'    => 'progress.php',
   'stats'       => 'progress.php',
   'playbook'    => 'progress.php',
+  'timeline'    => 'progress.php',
   'paths'       => 'paths.php',
   'lessons'     => 'lessons.php',
   'quiz'        => 'quiz.php',
