@@ -66,7 +66,7 @@ function renderLogin(msg) {
 }
 
 /* ---------- app shell ---------- */
-var NAV = [['overview','Overview'],['review','AI review'],['books','Books'],['lessons','Lessons'],['cards','Insight cards'],['questions','Quiz'],['assignment','Assignments'],['submissions','Submissions']];
+var NAV = [['overview','Overview'],['users','Users'],['review','AI review'],['books','Books'],['lessons','Lessons'],['cards','Insight cards'],['questions','Quiz'],['assignment','Assignments'],['submissions','Submissions']];
 function renderApp() {
   root().innerHTML =
     '<div class="wrap"><div class="side"><div class="brand"><img class="m" src="../assets/logo.svg" alt=""> Admin</div>' +
@@ -84,7 +84,7 @@ function renderApp() {
 function select(s) {
   S.section = s;
   document.querySelectorAll('#nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.s === s); });
-  ({ overview: secOverview, review: secReview, books: secBooks, lessons: secLessons, cards: secCards, questions: secQuestions, assignment: secAssignment, submissions: secSubmissions }[s])();
+  ({ overview: secOverview, users: secUsers, review: secReview, books: secBooks, lessons: secLessons, cards: secCards, questions: secQuestions, assignment: secAssignment, submissions: secSubmissions }[s])();
 }
 function head(title, sub) { return '<h1>' + esc(title) + '</h1><p class="sub">' + esc(sub) + '</p>'; }
 function pathSelect() {
@@ -104,12 +104,82 @@ function secOverview() {
   api('admin/overview').then(function (d) {
     var c = d.counts;
     el('main').innerHTML = head('Overview', 'Your content and activity at a glance.') +
-      (d.ai_enabled ? '' : '<div class="card" style="border-color:#E88A2A;background:#FFF6EC;margin-bottom:16px"><b>AI plans are off.</b> ' +
+      (d.ai_enabled ? '' : '<div class="notice"><b>AI plans are off.</b> ' +
         'Learners get the curated Communication path whatever goal they pick, and onboarding uses built-in options. ' +
         'Add your Claude API key to <code>api/config.php</code> (<code>claude.api_key</code>) to turn on personal plans.</div>') +
       '<div class="grid">' + Object.keys(c).map(function (k) {
-        return '<div class="stat"><div class="n">' + c[k] + '</div><div class="l">' + esc(k) + '</div></div>'; }).join('') + '</div>' +
-      '<p class="muted">Use the sidebar to manage books, lessons, insight cards, quizzes and assignments, and to review learner submissions.</p>';
+        var to = OVERVIEW_LINK[k];
+        return '<button class="stat link" ' + (to ? 'data-to="' + to + '"' : 'disabled') + '><div class="n">' + c[k] + '</div><div class="l">' +
+          esc(OVERVIEW_LABEL[k] || k) + (to ? ' <span class="go">\u2192</span>' : '') + '</div></button>'; }).join('') + '</div>' +
+      '<p class="muted">Click a card to open that section.</p>';
+    el('main').querySelector('.grid').addEventListener('click', function (e) { var b = e.target.closest('[data-to]'); if (b) select(b.dataset.to); });
+  });
+}
+var OVERVIEW_LINK = { users: 'users', paths: 'lessons', lessons: 'lessons', books: 'books', cards: 'cards', questions: 'questions', submissions: 'submissions', ai_review: 'review' };
+var OVERVIEW_LABEL = { cards: 'insight cards', questions: 'quiz questions', submissions: 'submissions to review', ai_review: 'AI items to review' };
+
+/* ---------- users ---------- */
+function fmtDate(d) { return d ? String(d).replace('T', ' ').slice(0, 16) : '\u2014'; }
+function secUsers() {
+  el('main').innerHTML = head('Users', 'Everyone who has signed up. Open one to see their progress, or delete them.') +
+    '<div class="toolbar"><input id="userSearch" placeholder="Search by email, name or goal\u2026" style="max-width:340px"><span class="muted" id="userCount"></span></div><div id="list">Loading\u2026</div>';
+  api('admin/users').then(function (d) {
+    S.users = d.rows || [];
+    var draw = function () {
+      var q = (el('userSearch').value || '').toLowerCase();
+      var rows = S.users.filter(function (u) { return !q || [u.email, u.display_name, u.goal, u.role].join(' ').toLowerCase().indexOf(q) !== -1; });
+      el('userCount').textContent = rows.length + ' of ' + S.users.length;
+      el('list').innerHTML = rows.length ? tableHTML(['User', 'Goal', 'Progress', 'Joined', 'Last seen'], rows, function (u) {
+        return '<tr class="clickrow" data-uid="' + u.id + '"><td><b>' + esc(u.display_name || u.email) + '</b>' + (u.is_admin ? ' <span class="pill rev">admin</span>' : '') +
+          (u.display_name ? '<div class="muted">' + esc(u.email) + '</div>' : '') + '</td>' +
+          '<td>' + esc(u.goal || '\u2014') + (u.role ? '<div class="muted">' + esc(u.role) + '</div>' : '') + '</td>' +
+          '<td>' + u.lessons_done + (u.lessons_done == 1 ? ' lesson' : ' lessons') + ' \u00B7 ' + u.submissions + (u.submissions == 1 ? ' proof' : ' proofs') + '<div class="muted">' +
+            (u.plan_status === 'ready' ? 'AI plan' : 'curated path') + ' \u00B7 \uD83D\uDD25 ' + u.streak + '</div></td>' +
+          '<td class="muted">' + esc(fmtDate(u.created_at)) + '</td><td class="muted">' + esc(fmtDate(u.last_seen_at)) + '</td>' +
+          '<td class="row-actions"><button class="btn sec sm" data-open="' + u.id + '">View</button>' +
+          (u.is_admin ? '' : '<button class="btn dng sm" data-del="' + u.id + '">Delete</button>') + '</td></tr>'; })
+        : '<p class="muted">No users match.</p>';
+    };
+    el('userSearch').addEventListener('input', draw);
+    el('list').addEventListener('click', function (e) {
+      var del = e.target.closest('[data-del]'); if (del) { e.stopPropagation(); return deleteUser(+del.dataset.del); }
+      var row = e.target.closest('[data-open],[data-uid]'); if (row) viewUser(+(row.dataset.open || row.dataset.uid));
+    });
+    draw();
+  }).catch(function () { el('list').innerHTML = '<p class="err">Could not load users.</p>'; });
+}
+function viewUser(id) {
+  api('admin/users/' + id).then(function (d) {
+    var u = d.user, o = u.onboarding || {}, st = u.stats || {};
+    var list = function (rows, fn, empty) { return rows && rows.length ? '<ul class="ulist">' + rows.map(fn).join('') + '</ul>' : '<p class="muted">' + empty + '</p>'; };
+    modal('<h3>' + esc(u.display_name || u.email) + (u.is_admin ? ' <span class="pill rev">admin</span>' : '') + '</h3>' +
+      '<p class="muted" style="margin-top:-6px">' + esc(u.email) + ' \u00B7 joined ' + esc(fmtDate(u.created_at)) + ' \u00B7 last seen ' + esc(fmtDate(u.last_seen_at)) + '</p>' +
+      '<div class="grid mini">' +
+        '<div class="stat"><div class="n">' + (st.streak || 0) + '</div><div class="l">day streak</div></div>' +
+        '<div class="stat"><div class="n">' + (st.growth_score || 0) + '</div><div class="l">growth score</div></div>' +
+        '<div class="stat"><div class="n">' + (st.insights_learned || 0) + '</div><div class="l">insights</div></div>' +
+        '<div class="stat"><div class="n">' + (st.actions_done || 0) + '</div><div class="l">actions</div></div></div>' +
+      '<label>Goals</label><div class="stat">' + (o.goal ? '<b>' + esc(o.goal) + '</b> \u00B7 ' + esc(o.role || '') + ' \u00B7 ' + esc(o.level || '') + ' \u00B7 ' + (o.daily_minutes || 10) + ' min/day' +
+        '<div class="muted" style="margin-top:6px">' + esc((o.focus_areas || []).join(' \u00B7 ')) + '</div>' +
+        '<div class="muted" style="margin-top:4px">' + (o.plan_status === 'ready' ? 'Personal AI plan' : 'Curated path') + '</div>' : '<span class="muted">Not onboarded yet</span>') + '</div>' +
+      '<label>Books (' + u.books.length + ')</label>' + list(u.books, function (b) { return '<li>#' + b.rank_no + ' ' + esc(b.title) + ' <span class="muted">' + esc(b.author) + '</span></li>'; }, 'No AI book list.') +
+      '<label>Lessons</label>' + list(u.lessons, function (l) { return '<li>' + esc(l.title) + ' <span class="muted">' + esc(l.status === 'done' ? 'done ' + fmtDate(l.completed_at) : 'started') + '</span></li>'; }, 'No lessons yet.') +
+      '<label>Quizzes</label>' + list(u.quizzes, function (q) { return '<li>' + esc(q.title) + ' <b>' + q.score + '/' + q.total + '</b> <span class="muted">' + esc(fmtDate(q.taken_at)) + '</span></li>'; }, 'No quizzes yet.') +
+      '<label>Assignments</label>' + list(u.assignments, function (a) { return '<li>' + esc(a.title) + ' <span class="pill ' + (a.status === 'reviewed' ? 'rev' : 'sub') + '">' + esc(a.status) + '</span> <span class="muted">' + esc(fmtDate(a.submitted_at)) + '</span></li>'; }, 'No assignments yet.') +
+      '<p class="muted">' + u.coach_messages + ' coach messages \u00B7 signed in on ' + u.sessions + ' device(s)</p>' +
+      '<div style="margin-top:16px;display:flex;gap:8px">' + (u.is_admin ? '' : '<button class="btn dng" id="delUser">Delete user</button>') +
+      '<button class="btn sec" onclick="Admin.closeModal()">Close</button></div>');
+    if (el('delUser')) el('delUser').onclick = function () { deleteUser(id); };
+  }).catch(function () { alert('Could not load this user.'); });
+}
+function deleteUser(id) {
+  var u = (S.users || []).filter(function (x) { return x.id == id; })[0];
+  var who = u ? (u.display_name || u.email) : 'this user';
+  if (!confirm('Delete ' + who + '?\n\nThis permanently removes their account, personal plan, progress, quiz results, assignments, uploaded photos and voice notes, and coach chats. It cannot be undone.')) return;
+  api('admin/users/' + id, { method: 'DELETE' }).then(function () { modal(null); secUsers(); }).catch(function (e) {
+    var err = e && e.data && e.data.error;
+    alert(err === 'cannot_delete_admin' ? 'Admins can\u2019t be deleted here. Remove them from admin_emails in config.php first.'
+      : err === 'cannot_delete_self' ? 'You can\u2019t delete your own account.' : 'Delete failed. Try again.');
   });
 }
 

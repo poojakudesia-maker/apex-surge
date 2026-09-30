@@ -10,6 +10,7 @@ function route_admin($method, $seg) {
   switch ($res) {
     case 'overview':   return admin_overview();
     case 'review':     return admin_review($method, $seg);
+    case 'users':      return admin_users($method, $id);
     case 'paths':      if ($method === 'GET') json_out(['rows' => db()->query('SELECT * FROM paths WHERE user_id IS NULL ORDER BY id')->fetchAll()]);
                        return admin_crud('paths', $method, $id,
                           ['slug','title','subtitle','goal','description']);
@@ -201,4 +202,85 @@ function admin_review($method, $seg) {
     json_out(['ok' => true]);
   }
   fail('not_found', 404);
+}
+
+/**
+ * Learners.
+ *   GET    users            list (newest first) with goal, plan, progress
+ *   GET    users/{id}       one learner: profile, onboarding, books, lessons, quizzes, assignments
+ *   DELETE users/{id}       delete the learner and everything that belongs to them (not admins, not yourself)
+ */
+function admin_users($method, $id) {
+  $me = current_user_opt();
+  if ($method === 'GET' && !$id) {
+    $rows = db()->query(
+      "SELECT u.id, u.email, u.display_name, u.is_admin, u.created_at, u.last_seen_at,
+              o.goal, o.role, o.level, o.plan_status,
+              COALESCE(st.streak, 0) AS streak,
+              (SELECT COUNT(*) FROM user_lesson ul WHERE ul.user_id = u.id AND ul.status = 'done') AS lessons_done,
+              (SELECT COUNT(*) FROM user_assignment ua WHERE ua.user_id = u.id AND ua.status IN ('submitted','reviewed')) AS submissions
+       FROM users u
+       LEFT JOIN onboarding o ON o.user_id = u.id
+       LEFT JOIN user_stats st ON st.user_id = u.id
+       ORDER BY u.id DESC LIMIT 1000")->fetchAll();
+    foreach ($rows as &$r) { $r['is_admin'] = is_admin_row($r); }
+    unset($r);
+    json_out(['rows' => $rows]);
+  }
+  if (!$id) fail('not_found', 404);
+  $u = db()->prepare('SELECT * FROM users WHERE id = ?');
+  $u->execute([$id]);
+  $user = $u->fetch();
+  if (!$user) fail('not_found', 404);
+
+  if ($method === 'GET') {
+    $one = function ($sql) use ($id) { $s = db()->prepare($sql); $s->execute([$id]); return $s; };
+    $ob = $one('SELECT goal, focus_areas, target, role, level, daily_minutes, format, plan_status, created_at FROM onboarding WHERE user_id = ?')->fetch() ?: null;
+    if ($ob) $ob['focus_areas'] = json_decode($ob['focus_areas'] ?: '[]', true);
+    json_out(['user' => [
+      'id' => (int)$user['id'], 'email' => $user['email'], 'display_name' => $user['display_name'],
+      'is_admin' => is_admin_row($user), 'created_at' => $user['created_at'], 'last_seen_at' => $user['last_seen_at'],
+      'onboarding'  => $ob,
+      'stats'       => $one('SELECT streak, growth_score, insights_learned, actions_done, last_active_date FROM user_stats WHERE user_id = ?')->fetch() ?: null,
+      'books'       => $one('SELECT b.title, b.author, b.gen_status, ub.rank_no FROM user_books ub JOIN books b ON b.id = ub.book_id WHERE ub.user_id = ? ORDER BY ub.rank_no')->fetchAll(),
+      'lessons'     => $one("SELECT l.title, ul.status, ul.completed_at FROM user_lesson ul JOIN lessons l ON l.id = ul.lesson_id WHERE ul.user_id = ? ORDER BY ul.id DESC LIMIT 50")->fetchAll(),
+      'quizzes'     => $one('SELECT l.title, uq.score, uq.total, uq.taken_at FROM user_quiz uq JOIN lessons l ON l.id = uq.lesson_id WHERE uq.user_id = ? ORDER BY uq.id DESC LIMIT 50')->fetchAll(),
+      'assignments' => $one('SELECT ua.id, a.title, ua.status, ua.submitted_at, ua.due_at FROM user_assignment ua JOIN assignments a ON a.lesson_id = ua.lesson_id WHERE ua.user_id = ? ORDER BY ua.id DESC LIMIT 50')->fetchAll(),
+      'coach_messages' => (int)$one('SELECT COUNT(*) FROM coach_messages WHERE user_id = ?')->fetchColumn(),
+      'sessions'    => (int)$one('SELECT COUNT(*) FROM sessions WHERE user_id = ? AND expires_at > NOW()')->fetchColumn(),
+    ]]);
+  }
+
+  if ($method === 'DELETE') {
+    if ($me && (int)$me['id'] === (int)$id) fail('cannot_delete_self', 409);
+    if (is_admin_row($user)) fail('cannot_delete_admin', 409);
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+      // personal plan: its lessons (and their cards, quizzes, assignments, progress) go with the path
+      $pdo->prepare('DELETE FROM paths WHERE user_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM login_codes WHERE email = ?')->execute([$user['email']]);
+      // everything else hangs off users with ON DELETE CASCADE
+      $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+      $pdo->commit();
+    } catch (Throwable $e) {
+      $pdo->rollBack();
+      error_log('[admin_users delete] ' . $e->getMessage());
+      fail('server_error', 500);
+    }
+    // uploaded proof files live in uploads/{user id}/
+    $dir = realpath(__DIR__ . '/../uploads/' . (int)$id);
+    $base = realpath(__DIR__ . '/../uploads');
+    if ($dir && $base && strpos($dir, $base . DIRECTORY_SEPARATOR) === 0 && is_dir($dir)) {
+      foreach (glob($dir . '/*') ?: [] as $f) if (is_file($f)) @unlink($f);
+      @rmdir($dir);
+    }
+    json_out(['ok' => true]);
+  }
+  fail('method_not_allowed', 405);
+}
+
+function is_admin_row($u) {
+  $admins = array_map('strtolower', cfg('admin_emails') ?: []);
+  return (bool)$u['is_admin'] || in_array(strtolower($u['email']), $admins, true);
 }

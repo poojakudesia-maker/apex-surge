@@ -1,5 +1,5 @@
 /* LeapPath service worker — app-shell cache, network-first for API. */
-var CACHE = 'compound-v7';
+var CACHE = 'compound-v8';
 var SHELL = [
   './',
   './index.html',

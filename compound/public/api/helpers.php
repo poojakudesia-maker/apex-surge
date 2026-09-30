@@ -1,6 +1,6 @@
 <?php
 const APP_NAME = 'LeapPath';
-const APP_VERSION = '2026.09.30';
+const APP_VERSION = '2026.09.30b';
 /** Shared helpers: JSON I/O, auth, CORS, small utilities. */
 
 function send_cors() {

@@ -12,7 +12,7 @@
   .wrap{display:flex;min-height:100vh}
   .side{width:210px;background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;flex:none;position:sticky;top:0;height:100vh}
   .brand{font-weight:800;font-size:18px;padding:6px 10px 18px;display:flex;align-items:center;gap:8px}
-  .brand .m{width:26px;height:26px;border-radius:7px;display:block}
+  .brand .m{width:26px;height:26px;border-radius:7px;display:block;object-fit:contain}
   .nav button{width:100%;text-align:left;background:none;border:none;color:var(--muted);padding:11px 12px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:2px}
   .nav button.on,.nav button:hover{background:var(--panel2);color:var(--ink)}
   .main{flex:1;padding:26px 30px;max-width:1000px}
@@ -48,6 +48,16 @@
   .muted{color:var(--muted)}
 .rv{margin-bottom:12px}.rv details{margin-top:8px}.rv summary{cursor:pointer;font-weight:600;font-size:13.5px}
 .rv p,.rv ol{font-size:13.5px;line-height:1.5}.rvact{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button.stat.link{font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .15s,transform .15s}
+button.stat.link:hover{border-color:var(--brand);transform:translateY(-2px)}
+button.stat.link:disabled{cursor:default;transform:none}
+.stat .go{color:var(--brand);opacity:0;transition:opacity .15s}
+button.stat.link:hover .go{opacity:1}
+.notice{border:1px solid #E88A2A;background:rgba(232,138,42,.12);color:var(--ink);border-radius:12px;padding:14px 16px;margin-bottom:16px;line-height:1.5}
+.clickrow{cursor:pointer}.clickrow:hover td{background:var(--panel2)}
+.grid.mini{grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 4px}
+.grid.mini .stat{padding:10px}.grid.mini .n{font-size:20px}
+.ulist{margin:0;padding-left:18px;line-height:1.7;font-size:13px}
 </style>
 </head>
 <body>

@@ -86,6 +86,11 @@ Go to `https://yourdomain.com/admin`, sign in with an email listed in `admin_ema
 Manage books, lessons, insight cards, quiz questions, and assignments, and review learner submissions
 (photos/audio play inline).
 
+
+Admin → **Users** lists everyone who signed up (search by email, name or goal). Open a learner to see
+their goals, book list, lessons, quiz scores and assignments, or delete them: that removes their account,
+personal plan, progress, uploads and coach chats. Admin accounts and your own can't be deleted there.
+The overview cards open their section.
 ---
 
 ## Email (login codes)
