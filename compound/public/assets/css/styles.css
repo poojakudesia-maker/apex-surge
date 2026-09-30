@@ -79,8 +79,7 @@ h2.sec .more{font-family:var(--font-b);font-size:12.5px;font-weight:600;color:va
 .hero .glow{position:absolute;inset:0;z-index:0;background:
   radial-gradient(420px 320px at 78% 12%, color-mix(in srgb,var(--brand) 40%,transparent),transparent 70%),
   radial-gradient(360px 300px at 10% 40%, color-mix(in srgb,var(--grow) 26%,transparent),transparent 70%);opacity:.9}
-.logomark{position:relative;z-index:1;width:56px;height:56px;border-radius:16px;background:var(--brand);color:#fff;
-  display:grid;place-items:center;font-family:var(--font-d);font-weight:800;font-size:30px;box-shadow:var(--shadow);margin-bottom:20px}
+.logomark{position:relative;z-index:1;display:block;width:56px;height:56px;border-radius:16px;box-shadow:var(--shadow);margin-bottom:20px}
 .hero h1{position:relative;z-index:1;font-family:var(--font-d);font-weight:800;font-size:38px;line-height:1.03;letter-spacing:-.03em;margin:0;text-wrap:balance}
 .hero h1 em{font-style:normal;color:var(--brand-ink)}
 .hero p{position:relative;z-index:1;color:var(--muted);font-size:16px;line-height:1.5;margin:16px 0 0;max-width:31ch}
@@ -538,3 +537,31 @@ button.avatar:active{transform:scale(.92)}
 .shareacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .shareacts .btn:first-child:nth-last-child(3){grid-column:1 / -1}
 .tabbar button{min-width:0}
+
+/* ================= Welcome: LeapPath hero ================= */
+.heroart{position:relative;z-index:1;flex:1;min-height:170px;display:flex;align-items:center;justify-content:center;margin:0 -8px 8px}
+.heroart svg{width:100%;max-width:380px;height:auto;max-height:100%;overflow:visible}
+.lp-road{fill:none;stroke:var(--line);stroke-width:3;stroke-linecap:round;stroke-dasharray:2 9}
+.lp-hop{fill:none;stroke:var(--brand);stroke-width:3.5;stroke-linecap:round;opacity:.9}
+.lp-start{fill:var(--brand-wash);stroke:var(--brand);stroke-width:2}
+.lp-disc{fill:var(--surface);stroke:var(--line);stroke-width:2;transition:fill .35s,stroke .35s}
+.lp-ring{fill:none;stroke:var(--brand);stroke-width:2;opacity:0}
+.lp-ic{fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:stroke .35s}
+.lp-ms text{font:700 11px var(--font-b);fill:var(--faint);text-anchor:middle;transition:fill .35s}
+.lp-ms{transform-box:fill-box}
+.lp-ms.on .lp-disc{fill:var(--brand);stroke:var(--brand)}
+.lp-ms.goal.on .lp-disc{fill:var(--grow);stroke:var(--grow)}
+.lp-ms.on .lp-ic{stroke:#fff}
+.lp-ms.on text{fill:var(--ink)}
+.lp-ms.on .lp-ring{animation:lpring .8s ease-out}
+.lp-ms.goal .lp-ring{stroke:var(--grow)}
+@keyframes lpring{from{opacity:.7;r:17}to{opacity:0;r:30}}
+.lp-dot{fill:var(--brand);filter:drop-shadow(0 4px 8px color-mix(in srgb,var(--brand) 45%,transparent))}
+.brandrow{position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.brandrow .logomark{margin:0;width:48px;height:48px;border-radius:14px}
+.wordmark{font-family:var(--font-d);font-weight:800;font-size:22px;letter-spacing:-.02em}
+@media (max-height:700px){.heroart{min-height:120px}.hero h1{font-size:32px}}
+
+.skelchoice{pointer-events:none;border-color:var(--line-soft)}
+.skelchoice .ic,.skelchoice i{background:linear-gradient(90deg,var(--surface-2) 0,var(--line) 40%,var(--surface-2) 80%);background-size:300% 100%;animation:shimmer 1.4s ease-in-out infinite}
+.skelchoice i{display:block;height:14px;border-radius:7px;flex:1;max-width:70%}

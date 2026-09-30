@@ -1,4 +1,5 @@
 <?php
+const APP_NAME = 'LeapPath';
 /** Shared helpers: JSON I/O, auth, CORS, small utilities. */
 
 function send_cors() {

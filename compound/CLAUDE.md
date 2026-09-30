@@ -1,9 +1,9 @@
-# CLAUDE.md — Compound
+# CLAUDE.md — LeapPath (codebase name: compound)
 
 Context for Claude Code working on this repo. Read this first.
 
 ## What this is
-Compound is an installable **PWA** for learning the best productivity/communication books in ~10 min a day,
+LeapPath is an installable **PWA** for learning the best productivity/communication books in ~10 min a day,
 with an **apply loop**: selection-based onboarding (no password), skill paths, read/listen insight cards,
 an instantly-graded quiz after each lesson, a 2-day field assignment with photo/audio proof, progress +
 streaks, and a **live AI coach** (Claude API). There is an **admin panel** for content + submission review.
@@ -40,7 +40,7 @@ public/sw.js, manifest.webmanifest, assets/icons/*
 public/api/index.php     router → routes/*.php
 public/api/config.php    SECRETS (git-ignored) — copy of config.sample.php
 public/api/db.php helpers.php claude.php mailer.php
-public/api/routes/       auth, onboarding, plan (AI), paths, lessons, quiz, assignments, library, progress, coach, admin
+public/api/routes/       auth, onboarding, suggest (public AI onboarding options), plan (AI), paths, lessons, quiz, assignments, library, progress, coach, admin
 public/api/uploads/      assignment files (private; served only via GET /api/uploads/{id} with auth)
 public/admin/            content admin SPA (index.html + admin.js)
 ```
@@ -75,6 +75,8 @@ edit `api/config.php` → make `api/uploads/` writable → fill in `mail.smtp` �
 (sign in with an `admin_emails` address). Full steps in `README.md`.
 
 ## Gotchas
+- The product name is LeapPath (`APP_NAME` in `api/helpers.php`). Internal identifiers such as
+  `compound_token` and the `compound-v*` cache stay as they are; renaming them would sign everyone out.
 - Login codes are sent only by email via `api/mailer.php` (SMTP). Never return codes in API responses.
 - `fileinfo`, `curl`, `pdo_mysql` PHP extensions must be enabled.
 - Uploaded files are private; never expose the `uploads/` dir directly (its `.htaccess` denies access).

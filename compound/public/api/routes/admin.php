@@ -29,7 +29,7 @@ function route_admin($method, $seg) {
 
 function admin_overview() {
   $one = fn($sql) => (int)db()->query($sql)->fetchColumn();
-  json_out(['counts' => [
+  json_out(['ai_enabled' => claude_configured(), 'counts' => [
     'users'       => $one('SELECT COUNT(*) FROM users'),
     'paths'       => $one('SELECT COUNT(*) FROM paths'),
     'lessons'     => $one('SELECT COUNT(*) FROM lessons'),

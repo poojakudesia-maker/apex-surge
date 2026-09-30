@@ -1,6 +1,6 @@
 <?php
 /**
- * Compound API configuration.
+ * LeapPath API configuration.
  * COPY this file to `config.php` and fill in your values.
  * config.php is git-ignored and never shipped.
  */
@@ -32,7 +32,7 @@ return [
   // mailbox (or an alias of it) or the message will be rejected / marked as spam.
   'mail' => [
     'from'      => 'no-reply@REPLACE_DOMAIN.com',
-    'from_name' => 'Compound',
+    'from_name' => 'LeapPath',
     'smtp' => [
       'host'    => 'smtp.hostinger.com',
       'port'    => 465,                          // 465 = SSL, 587 = STARTTLS

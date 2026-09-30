@@ -161,7 +161,7 @@ function db_onboarded($uid) {
 
 function send_login_email($email, $code) {
   $ttl = (int)cfg('code_ttl_min');
-  $app = cfg('mail')['from_name'] ?? 'Compound';
+  $app = APP_NAME;
   $subject = $code . ' is your ' . $app . ' sign-in code';
   $text =
     "Your $app sign-in code is: $code\r\n\r\n" .

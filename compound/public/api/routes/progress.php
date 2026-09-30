@@ -142,7 +142,7 @@ function route_timeline($method, $seg) {
     if ($at) $ev[] = ['type' => $type, 'at' => $at, 'title' => $title, 'detail' => $detail];
   };
 
-  $add('joined', $user['created_at'], 'Joined Compound', 'Your journey started here');
+  $add('joined', $user['created_at'], 'Joined ' . APP_NAME, 'Your journey started here');
 
   $p = db()->prepare('SELECT p.created_at, p.goal, COUNT(l.id) AS n FROM paths p LEFT JOIN lessons l ON l.path_id = p.id WHERE p.user_id = ? GROUP BY p.id');
   $p->execute([$uid]);

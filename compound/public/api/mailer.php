@@ -11,7 +11,7 @@ function send_mail($to, $subject, $text, $html = null) {
   $m = cfg('mail') ?: [];
   $smtp = $m['smtp'] ?? null;
   $from = $m['from'] ?? '';
-  $from_name = $m['from_name'] ?? 'Compound';
+  $from_name = $m['from_name'] ?? APP_NAME;
 
   if (!$from || !filter_var($from, FILTER_VALIDATE_EMAIL)) {
     error_log('[mailer] mail.from is not a valid address');

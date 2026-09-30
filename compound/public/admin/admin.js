@@ -1,4 +1,4 @@
-/* Compound Admin — content management + submission review. */
+/* LeapPath Admin — content management + submission review. */
 (function () {
 'use strict';
 var API = (window.COMPOUND_CONFIG && window.COMPOUND_CONFIG.API_BASE) || '/api';
@@ -31,7 +31,7 @@ function boot() {
 }
 function renderLogin(msg) {
   root().innerHTML =
-    '<div class="login"><div class="brand" style="padding-left:0"><span class="m">C</span> Compound Admin</div>' +
+    '<div class="login"><div class="brand" style="padding-left:0"><img class="m" src="../assets/logo.svg" alt=""> LeapPath Admin</div>' +
     '<p class="muted">Sign in with an admin email. We\'ll send a 6-digit code.</p>' +
     '<div id="step1"><label>Email</label><input id="aemail" type="email" placeholder="you@domain.com">' +
     '<div class="err" id="aerr">' + (msg ? esc(msg) : '') + '</div>' +
@@ -69,7 +69,7 @@ function renderLogin(msg) {
 var NAV = [['overview','Overview'],['review','AI review'],['books','Books'],['lessons','Lessons'],['cards','Insight cards'],['questions','Quiz'],['assignment','Assignments'],['submissions','Submissions']];
 function renderApp() {
   root().innerHTML =
-    '<div class="wrap"><div class="side"><div class="brand"><span class="m">C</span> Admin</div>' +
+    '<div class="wrap"><div class="side"><div class="brand"><img class="m" src="../assets/logo.svg" alt=""> Admin</div>' +
     '<div class="nav" id="nav">' + NAV.map(function (n) { return '<button data-s="' + n[0] + '">' + n[1] + '</button>'; }).join('') + '</div>' +
     '<div style="position:absolute;bottom:16px;left:12px;right:12px"><button class="btn sec sm" style="width:100%" id="logout">Log out</button></div></div>' +
     '<div class="main" id="main"></div></div>';
@@ -104,6 +104,9 @@ function secOverview() {
   api('admin/overview').then(function (d) {
     var c = d.counts;
     el('main').innerHTML = head('Overview', 'Your content and activity at a glance.') +
+      (d.ai_enabled ? '' : '<div class="card" style="border-color:#E88A2A;background:#FFF6EC;margin-bottom:16px"><b>AI plans are off.</b> ' +
+        'Learners get the curated Communication path whatever goal they pick, and onboarding uses built-in options. ' +
+        'Add your Claude API key to <code>api/config.php</code> (<code>claude.api_key</code>) to turn on personal plans.</div>') +
       '<div class="grid">' + Object.keys(c).map(function (k) {
         return '<div class="stat"><div class="n">' + c[k] + '</div><div class="l">' + esc(k) + '</div></div>'; }).join('') + '</div>' +
       '<p class="muted">Use the sidebar to manage books, lessons, insight cards, quizzes and assignments, and to review learner submissions.</p>';

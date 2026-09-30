@@ -1,4 +1,4 @@
-# Compound — PWA + PHP/MySQL
+# LeapPath — PWA + PHP/MySQL
 
 A working installable PWA for learning the best productivity/communication books in ~10 min a day:
 selection-based onboarding (no password), skill paths, read/listen insight cards, an instantly-graded
@@ -149,6 +149,15 @@ If you already imported `schema.sql` before book summaries existed:
 
 ---
 
+## Logo
+
+The logo is a placeholder at `public/assets/logo.svg`. To use the final one, replace that file (keep the
+name) and regenerate the PNG icons in `public/assets/icons/` (`icon-192.png`, `icon-512.png`,
+`maskable-512.png` with extra padding, `favicon-32.png`). The welcome screen, email/code screens, admin
+and share card all read `logo.svg`.
+
+---
+
 ## How it works (quick map)
 
 - **Auth:** `POST /api/auth/request-code` → emails a code; `POST /api/auth/verify-code` → returns a bearer
@@ -160,6 +169,10 @@ If you already imported `schema.sql` before book summaries existed:
   due 2 days out; files are served back only to the owner or an admin via `GET /api/uploads/{id}`.
 - **Library:** `GET /api/library` lists books; `GET /api/books/{id}` returns the blurb, written summary and key
   insights. The book page can read the summary aloud.
+- **Onboarding:** goal → role → level → outcomes → target/time → format. The outcomes screen is written by
+  Claude for the chosen goal, role and level (`POST /api/suggest/outcomes`, public; inputs must match the
+  onboarding lists, results cached per combination for a day, rate limited). Without a key, or if it takes
+  over 9 seconds, the app shows its own options for that goal.
 - **Profile (Me tab):** `GET /api/timeline` returns the learner's journey (joined, plan built, lessons,
   quizzes, assignments, reviews) and a summary; `POST /api/auth/profile` sets the display name;
   `POST /api/auth/logout` and `/api/auth/logout-all` end one or every session. "Share my progress" draws

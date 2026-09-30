@@ -30,6 +30,7 @@ $map = [
   'books'       => 'library.php',
   'coach'       => 'coach.php',
   'plan'        => 'plan.php',
+  'suggest'     => 'suggest.php',
   'admin'       => 'admin.php',
 ];
 

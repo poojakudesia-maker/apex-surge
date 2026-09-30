@@ -1,4 +1,4 @@
-/* Compound — PWA frontend. Single-file SPA wired to the PHP API. */
+/* LeapPath — PWA frontend. Single-file SPA wired to the PHP API. */
 (function () {
 'use strict';
 var API = (window.COMPOUND_CONFIG && window.COMPOUND_CONFIG.API_BASE) || '/api';
@@ -55,6 +55,8 @@ function api(path, opts) {
 var histStack = [];
 function show(id, opts) {
   opts = opts || {};
+  if (id === 's-welcome' && heroAnim.start) setTimeout(heroAnim.start, 50);
+  if (id === 's-role' || id === 's-level' || id === 's-focus') tailorOnboarding(id);
   if (typeof audio !== 'undefined' && audio.playing) stopAudio(); // leaving the screen stops narration
   document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
   if (!opts.replace) { if (histStack[histStack.length - 1] !== id) histStack.push(id); }
@@ -66,7 +68,10 @@ function back() { if (histStack.length > 1) { histStack.pop(); show(histStack[hi
 /* ---------- selection (onboarding) ---------- */
 document.addEventListener('click', function (e) {
   var goEl = e.target.closest('[data-go]');
-  if (goEl) { show(goEl.getAttribute('data-go')); return; }
+  if (goEl) {
+    if (goEl.closest('#s-focus .footer') && !document.querySelector('#focusChoices [aria-checked="true"]')) { toast('Pick at least one outcome.'); return; }
+    show(goEl.getAttribute('data-go')); return;
+  }
   var opt = e.target.closest('.choice, .seg');
   if (opt && opt.closest('[data-field]')) {
     var group = opt.closest('[data-field]');
@@ -76,6 +81,7 @@ document.addEventListener('click', function (e) {
     } else {
       opt.setAttribute('aria-checked', opt.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
     }
+    if (group.dataset.field === 'level') { collectOnboarding(); fetchOutcomes().catch(function () {}); }
   }
 });
 
@@ -92,6 +98,100 @@ function collectOnboarding() {
         g.querySelectorAll('[aria-checked="true"]'), function (x) { return x.dataset.val; });
     }
   });
+}
+
+/* ---------- onboarding that adapts to the learner's answers ---------- */
+var GOAL_PHRASE = { 'Communication': 'communication', 'Productivity': 'focus and productivity', 'Interview Prep': 'interviewing',
+  'Leadership': 'leadership', 'Confidence': 'confidence', 'Habits': 'your habits' };
+/* used when AI is off or slow */
+var FALLBACK_OUTCOMES = {
+  'Communication': [['Speak up more in meetings', '🗣️'], ['Handle difficult conversations calmly', '🤝'], ['Give clear, direct feedback', '📣'], ['Present with confidence', '🎤'], ['Persuade and influence stakeholders', '🧲'], ['Listen so people feel heard', '👂']],
+  'Productivity': [['Do two hours of deep work a day', '🎯'], ['Stop putting off big tasks', '🐢'], ['Plan my week in 20 minutes', '🗓️'], ['Say no to low-value work', '✋'], ['Cut phone and chat distractions', '📵'], ['Finish what I start', '✅']],
+  'Interview Prep': [['Answer behavioural questions with STAR', '⭐'], ['Tell my story in two minutes', '🗣️'], ['Stay calm under tough questions', '🧘'], ['Ask sharp questions about the role', '🔍'], ['Negotiate a better offer', '💰'], ['Follow up and stand out', '✉️']],
+  'Leadership': [['Give feedback that lands', '📣'], ['Delegate without micromanaging', '🤲'], ['Run meetings that end in decisions', '🗳️'], ['Coach my team to grow', '🌱'], ['Make hard calls with confidence', '⚖️'], ['Build trust with a new team', '🤝']],
+  'Confidence': [['Speak up without overthinking', '🗣️'], ['Quiet my inner critic', '🤫'], ['Set boundaries and say no', '✋'], ['Walk into a room with presence', '🚪'], ['Bounce back from setbacks faster', '🔁'], ['Back myself when deciding', '💪']],
+  'Habits': [['Build a morning routine that sticks', '🌅'], ['Exercise three times a week', '🏃'], ['Read every day', '📚'], ['Cut down screen time', '📵'], ['Stop procrastinating', '🐢'], ['Sleep and wake on a schedule', '😴']]
+};
+var outcomeCache = {}, focusKey = null;
+function obKey() { var o = state.onboarding; return [o.goal, o.role, o.level].join('|'); }
+function fetchOutcomes() {
+  var o = state.onboarding, k = obKey();
+  if (!o.goal || !o.role || !o.level) return Promise.reject();
+  if (!outcomeCache[k]) {
+    outcomeCache[k] = api('suggest/outcomes', { method: 'POST', body: { goal: o.goal, role: o.role, level: o.level } })
+      .catch(function (e) { delete outcomeCache[k]; throw e; });
+  }
+  return outcomeCache[k];
+}
+function fallbackOutcomes() {
+  var g = state.onboarding.goal || 'Communication', ph = GOAL_PHRASE[g] || 'this';
+  var heads = { 'Communication': 'What does better communication look like?', 'Productivity': 'What does a more focused day look like?',
+    'Interview Prep': 'What does interview-ready mean for you?', 'Leadership': 'What kind of leader do you want to be?',
+    'Confidence': 'Where do you want more confidence?', 'Habits': 'Which habits do you want to build?' };
+  return { heading: heads[g] || 'What does better ' + ph + ' look like?', subheading: 'Pick what matters most. We’ll turn it into SMART goals.',
+    outcomes: (FALLBACK_OUTCOMES[g] || FALLBACK_OUTCOMES.Communication).map(function (x) { return { label: x[0], emoji: x[1] }; }) };
+}
+function tailorOnboarding(id) {
+  collectOnboarding();
+  var o = state.onboarding, ph = GOAL_PHRASE[o.goal] || 'this';
+  if (id === 's-role') el('roleSub').textContent = 'So your ' + ph + ' examples fit your world, not a generic one.';
+  if (id === 's-level') {
+    el('levelHead').textContent = 'Where are you with ' + ph + ' today?';
+    el('levelSub').textContent = 'We’ll set the starting depth for your ' + (o.goal || '').toLowerCase() + ' path.';
+    fetchOutcomes().catch(function () {}); // warm up the next screen
+  }
+  if (id === 's-focus') renderFocus();
+}
+function renderFocus() {
+  var k = obKey(); if (focusKey === k) return; // keep their picks when they come back to this screen
+  var box = el('focusChoices'), btn = document.querySelector('#s-focus .footer .btn');
+  el('focusHead').textContent = 'Writing options for you…';
+  el('focusSub').textContent = 'Based on your goal, role and experience.';
+  box.innerHTML = [0, 1, 2, 3, 4, 5].map(function () { return '<div class="choice skelchoice"><div class="ic"></div><i></i></div>'; }).join('');
+  btn.disabled = true;
+  var timeout = new Promise(function (_, rej) { setTimeout(rej, 9000); });
+  Promise.race([fetchOutcomes(), timeout]).catch(fallbackOutcomes).then(function (d) {
+    if (obKey() !== k) return;
+    focusKey = k;
+    el('focusHead').textContent = d.heading || fallbackOutcomes().heading;
+    el('focusSub').textContent = d.subheading || fallbackOutcomes().subheading;
+    box.innerHTML = (d.outcomes || []).map(function (x, i) {
+      return '<div class="choice" data-val="' + esc(x.label) + '"' + (i < 2 ? ' aria-checked="true"' : '') + '><div class="ic">' + esc(x.emoji || '•') +
+        '</div><div><div class="t">' + esc(x.label) + '</div></div><div class="ck">✓</div></div>'; }).join('');
+    btn.disabled = false;
+  });
+}
+
+/* ---------- welcome animation: a dot leaps milestone to milestone ---------- */
+function heroAnim() {
+  var svg = el('leapArt'); if (!svg || !el('lpHop1').getTotalLength) return;
+  var hops = [el('lpHop1'), el('lpHop2'), el('lpHop3')], ms = [el('lpM1'), el('lpM2'), el('lpM3')], dot = el('lpDot');
+  var lens = hops.map(function (h) { return h.getTotalLength(); });
+  function setTrail(i, f) { hops[i].style.strokeDasharray = lens[i]; hops[i].style.strokeDashoffset = lens[i] * (1 - f); }
+  function place(i, f) { var pt = hops[i].getPointAtLength(lens[i] * f); dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y); }
+  function reset() { hops.forEach(function (h, i) { setTrail(i, 0); }); ms.forEach(function (m) { m.classList.remove('on'); }); place(0, 0); }
+  if (reducedMotion()) { hops.forEach(function (h, i) { setTrail(i, 1); }); ms.forEach(function (m) { m.classList.add('on'); }); place(2, 1); return; }
+  var HOP = 900, REST = 520, END = 1600, t0 = null, raf = null;
+  var cycle = 3 * (HOP + REST) + END;
+  var ease = function (x) { return x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; };
+  function frame(ts) {
+    var screen = el('s-welcome');
+    if (!screen || !screen.classList.contains('active')) { raf = null; t0 = null; return; }
+    if (t0 === null) { t0 = ts; reset(); }
+    var t = (ts - t0) % cycle;
+    if (ts - t0 >= cycle) { t0 = ts; reset(); t = 0; }
+    for (var i = 0; i < 3; i++) {
+      var start = i * (HOP + REST), local = t - start;
+      if (local < 0) { setTrail(i, 0); continue; }
+      var f = Math.min(1, local / HOP), e = ease(f);
+      setTrail(i, e);
+      if (local <= HOP + REST) place(i, e);
+      if (f >= 1 && !ms[i].classList.contains('on')) ms[i].classList.add('on');
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  heroAnim.start = function () { if (!raf) raf = requestAnimationFrame(frame); };
+  heroAnim.start();
 }
 
 /* ---------- boot ---------- */
@@ -985,7 +1085,7 @@ function editGoals() {
 }
 
 function logout(all) {
-  if (!confirm(all ? 'Log out on every device you use Compound on?' : 'Log out of Compound on this device?')) return;
+  if (!confirm(all ? 'Log out on every device you use LeapPath on?' : 'Log out of LeapPath on this device?')) return;
   var done = function () {
     stopAudio();
     state.token = null; state.user = null; state.home = null; state.timeline = null;
@@ -1011,6 +1111,7 @@ function wrapText(ctx, text, x, y, maxW, lh, maxLines) {
   return y;
 }
 function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+var logoImg = new Image(); logoImg.src = 'assets/logo.svg';
 function drawShareCard(s) {
   var W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
   var ctx = c.getContext('2d'), D = '"Bricolage Grotesque", sans-serif', B = 'Figtree, sans-serif';
@@ -1019,9 +1120,8 @@ function drawShareCard(s) {
   ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.beginPath(); ctx.arc(W - 40, 120, 300, 0, 7); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.beginPath(); ctx.arc(60, H - 80, 360, 0, 7); ctx.fill();
   // brand
-  ctx.fillStyle = '#fff'; roundRect(ctx, 80, 80, 84, 84, 22); ctx.fill();
-  ctx.fillStyle = '#6242F5'; ctx.font = '800 54px ' + D; ctx.textAlign = 'center'; ctx.fillText('C', 122, 141);
-  ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '700 40px ' + D; ctx.fillText('Compound', 188, 136);
+  if (logoImg.complete && logoImg.naturalWidth) { ctx.save(); roundRect(ctx, 80, 80, 84, 84, 22); ctx.clip(); ctx.drawImage(logoImg, 80, 80, 84, 84); ctx.restore(); }
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '700 40px ' + D; ctx.fillText('LeapPath', 188, 136);
   // headline
   var who = firstName() ? firstName() + '’s' : 'My';
   ctx.font = '600 34px ' + B; ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillText(who + ' learning progress', 80, 290);
@@ -1060,7 +1160,7 @@ function shareText(s) {
   if (s.streak) parts.push(s.streak + '-day streak');
   parts.push(s.lessons_done + ' lesson' + (s.lessons_done === 1 ? '' : 's') + ' done');
   if (s.assignments) parts.push(s.assignments + ' real-world action' + (s.assignments === 1 ? '' : 's'));
-  return 'My progress on Compound' + (s.profile && s.profile.goal ? ' (' + s.profile.goal + ')' : '') + ': ' + parts.join(', ') + '. Learning from great books, 10 minutes a day. ' + location.origin;
+  return 'My progress on LeapPath' + (s.profile && s.profile.goal ? ' (' + s.profile.goal + ')' : '') + ': ' + parts.join(', ') + '. Learning from great books, 10 minutes a day. ' + location.origin;
 }
 function openShare() {
   var s = state.timeline && state.timeline.summary; if (!s) return;
@@ -1100,7 +1200,7 @@ function loadCoach() {
   return api('coach').then(function (d) {
     var msgs = d.messages || [];
     var chat = msgs.length ? msgs.map(bubbleHTML).join('') :
-      '<div class="bubble ai"><div class="who">✦ Coach</div>Hi! I\'m your Compound coach. Tell me a real situation and I\'ll help you handle it, or we can role-play a tough conversation. What\'s on your mind?</div>';
+      '<div class="bubble ai"><div class="who">✦ Coach</div>Hi! I\'m your LeapPath coach. Tell me a real situation and I\'ll help you handle it, or we can role-play a tough conversation. What\'s on your mind?</div>';
     el('s-coach').innerHTML =
       '<div class="apphead"><div class="avatar" style="background:var(--brand);color:#fff">✦</div><div style="flex:1"><div class="eyebrow">Always on</div><h1>AI Coach</h1></div></div>' +
       '<div class="scroll" id="coachScroll"><div class="chat" id="chat">' + chat + '</div>' +
@@ -1149,5 +1249,6 @@ window.App = {
   openBook: openBook, openApply: openApply, practice: practice, editName: editName, editGoals: editGoals, logout: logout, openShare: openShare, setCat: setCat, sendCoach: sendCoach, quickCoach: quickCoach, resetCoach: resetCoach
 };
 
+heroAnim();
 boot();
 })();

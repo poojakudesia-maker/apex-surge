@@ -1,6 +1,6 @@
 {
-  "name": "Compound — learn & apply",
-  "short_name": "Compound",
+  "name": "LeapPath — learn & apply",
+  "short_name": "LeapPath",
   "description": "Turn the best productivity and communication books into daily practice. Learn in 10 minutes, then apply it.",
   "start_url": "./index.html",
   "scope": "./",
