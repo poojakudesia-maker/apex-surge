@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walkthrough - Wizard Onboarding Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; }
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: #fafafa;
+  color: #000;
+}
+.canvas-wrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  background: #d4d4d4;
+  padding: 2px;
+  height: 100vh;
+  overflow: auto;
+}
+.screen-slot {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.screen-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  padding: 40px 48px;
+  gap: 24px;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+  position: relative;
+}
+.screen-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #999;
+  background: rgba(255,255,255,0.9);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font: 500 10px 'IBM Plex Mono', monospace;
+  border: 1px solid #000;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.chip-step { margin-bottom: 8px; }
+.lbl {
+  font: 500 10px 'IBM Plex Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5c5c5c;
+}
+input, textarea, select {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  border: 1.5px solid #000;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+input[type="text"], textarea { width: 100%; }
+textarea { min-height: 80px; resize: none; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid #000;
+  border-radius: 6px;
+  font: 500 12px 'IBM Plex Sans', system-ui, sans-serif;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-primary { background: #000; color: #fff; }
+.muted { color: #5c5c5c; font-size: 12px; }
+.card {
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  font-size: 12px;
+}
+.tab-group { display: flex; gap: 12px; margin-bottom: 12px; font-size: 12px; border-bottom: 1px solid #d4d4d4; padding-bottom: 8px; }
+.tab { cursor: pointer; color: #5c5c5c; font-weight: 400; }
+.tab-active { color: #000; font-weight: 600; border-bottom: 2px solid #000; }
+.flex-grow { flex: 1; }
+.flex-between { display: flex; justify-content: space-between; gap: 8px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="canvas-wrapper">
+
+<!-- Step 1: Project Name -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">1 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">1</span> of 5</div>
+      <h1>What's your project called?</h1>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:12px">
+      <div>
+        <div class="lbl">Project name</div>
+        <input type="text" value="Clinic booking app" placeholder="e.g. Mobile checkout">
+      </div>
+      <p class="muted">Give it a name so you can find it later.</p>
+    </div>
+    <div class="flex-between" style="justify-content:flex-end"><button class="btn btn-primary">Next →</button></div>
+  </div>
+</div>
+
+<!-- Step 2: Problem Statement -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">2 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">2</span> of 5</div>
+      <h1>What problem are you solving?</h1>
+      <p class="muted" style="margin:4px 0 0">Describe the user goal or issue you're testing</p>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:12px">
+      <div>
+        <div class="lbl">Problem statement</div>
+        <textarea>Users struggle to book appointments on mobile because the flow has too many steps</textarea>
+      </div>
+      <p class="muted">This helps frame what you're testing for when you review results.</p>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Next →</button></div>
+  </div>
+</div>
+
+<!-- Step 3: Select Persona -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">3 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">3</span> of 5</div>
+      <h1>Who are you testing with?</h1>
+      <p class="muted" style="margin:4px 0 0">Choose a persona or create custom</p>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:10px">
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;border:2.5px solid #000;border-radius:6px;cursor:pointer;font-weight:600">
+        <input type="radio" checked style="margin:0">
+        <span>Cautious first-timer</span>
+        <span class="muted" style="font-size:11px">Reads everything, distrusts surprises</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #d4d4d4;border-radius:6px;cursor:pointer">
+        <input type="radio" style="margin:0">
+        <span style="font-weight:500">Time-pressed manager</span>
+      </label>
+      <button class="btn" style="justify-content:flex-start;gap:6px;border-style:dashed">+ Create custom</button>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Next →</button></div>
+  </div>
+</div>
+
+<!-- Step 4a: Upload Screenshots -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">4a of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">4</span> of 5</div>
+      <h1>Enter the workflow</h1>
+      <p class="muted" style="margin:4px 0 0">Upload screenshots or describe screens</p>
+    </div>
+    <div class="tab-group">
+      <span class="tab tab-active">Upload screenshots</span>
+      <span class="tab">Describe in text</span>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:10px">
+      <div style="border:2px dashed #000;border-radius:8px;padding:20px;text-align:center">
+        <div style="font-weight:600;font-size:12px">Drag screenshots here</div>
+        <p class="muted" style="margin:4px 0 0">Name them 1.png, 2.png, etc</p>
+      </div>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Review →</button></div>
+  </div>
+</div>
+
+<!-- Step 4b: Describe Text -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">4b of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">4</span> of 5</div>
+      <h1>Enter the workflow</h1>
+      <p class="muted" style="margin:4px 0 0">Upload screenshots or describe screens</p>
+    </div>
+    <div class="tab-group">
+      <span class="tab">Upload screenshots</span>
+      <span class="tab tab-active">Describe in text</span>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;gap:8px">
+      <div class="lbl">Describe each screen</div>
+      <textarea style="flex:1;min-height:auto">Screen 1: Home page with "Book now"
+Screen 2: Find doctor list
+Screen 3: Doctor profile
+Screen 4: Pick time</textarea>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Review →</button></div>
+  </div>
+</div>
+
+<!-- Step 5: Review & Confirm -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">5 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">5</span> of 5</div>
+      <h1>Ready to simulate?</h1>
+      <p class="muted" style="margin:4px 0 0">Review your setup</p>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:12px">
+      <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:11px">
+        <div><div class="lbl">Project</div><div style="font-weight:600">Clinic booking</div></div>
+        <div><div class="lbl">Persona</div><div style="font-weight:600">Cautious 1st timer</div></div>
+        <div style="grid-column:1/-1"><div class="lbl">Problem</div><div style="font-weight:500;font-size:12px">Struggle on mobile</div></div>
+      </div>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Start →</button></div>
+  </div>
+</div>
+
+<!-- Step 6: Live Simulation -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">6 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">✓</span></div>
+      <h1>Simulation running</h1>
+      <p class="muted" style="margin:4px 0 0">Watch the persona navigate</p>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:12px">
+      <div style="font-size:11px;display:flex;justify-content:space-between">
+        <span>3 of 3 runs complete</span>
+        <span>~1 min</span>
+      </div>
+      <div style="height:6px;border-radius:3px;background:#e8e8e8"><div style="width:100%;height:100%;border-radius:3px;background:#000"></div></div>
+      <div class="card" style="background:#f5f5f5;font-size:11px">
+        <div style="font-weight:600">Cautious first-timer · Run 3</div>
+        <p style="margin:6px 0 0;font-style:italic;color:#333">"Why does it need my card?"</p>
+      </div>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Report →</button></div>
+  </div>
+</div>
+
+<!-- Step 7: Report -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">7 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">✓</span></div>
+      <h1>Simulation complete</h1>
+      <p class="muted" style="margin:4px 0 0">Here's what we found</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;flex-grow:1">
+      <div class="card"><div class="lbl">Completed</div><div style="font-size:16px;font-weight:700">3/3</div></div>
+      <div class="card"><div class="lbl">Worst step</div><div style="font-size:16px;font-weight:700">Payment</div></div>
+      <div class="card"><div class="lbl">Issues</div><div style="font-size:16px;font-weight:700">2</div></div>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Protocol →</button></div>
+  </div>
+</div>
+
+<!-- Step 8: Test Protocol -->
+<div class="screen-slot">
+  <div class="screen-content">
+    <span class="screen-label">8 of 9</span>
+    <div>
+      <div class="chip-step"><span class="chip">✓</span></div>
+      <h1>Test protocol ready</h1>
+      <p class="muted" style="margin:4px 0 0">For real user testing</p>
+    </div>
+    <div class="flex-grow" style="display:flex;flex-direction:column;justify-content:center;gap:8px">
+      <div class="card" style="font-size:11px">
+        <div style="font-weight:600">Task 1</div>
+        <p style="margin:4px 0 0;font-style:italic">"Book an appointment"</p>
+      </div>
+      <div class="card" style="font-size:11px">
+        <div style="font-weight:600">Probe at payment</div>
+        <ul style="margin:4px 0 0;padding-left:14px;font-size:10px"><li>What did you expect?</li><li>Would you proceed?</li></ul>
+      </div>
+    </div>
+    <div class="flex-between"><button class="btn">← Back</button><button class="btn btn-primary">Done</button></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
